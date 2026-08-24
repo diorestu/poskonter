@@ -2,62 +2,57 @@
 
 @section('content')
     <section class="pane">
-        <div class="toolbar flex items-center justify-between px-4 py-3">
-            <div>
-                <h1 class="font-semibold">Stock</h1>
-                <p class="text-[color:var(--muted)]">Setiap stok masuk dicatat per item agar serial number, expiry date, dan harga modal tersimpan sesuai waktu penerimaan barang.</p>
-            </div>
-        </div>
-
         <div class="grid gap-4 p-4 xl:grid-cols-[430px_1fr]">
             <div class="space-y-4">
-                <form id="stockForm" class="list-panel p-3">
-                    <div class="mb-3 text-sm font-semibold">Input Stok Masuk</div>
+                <form id="stockForm" class="list-panel p-4">
+                    <div class="mb-3 flex items-center justify-between">
+                        <div class="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">Input Stok Masuk</div>
+                    </div>
                     <div class="space-y-3">
                         <div class="search-select">
-                            <label class="mb-1 block font-medium">Produk</label>
-                            <input class="field" type="text" id="stock_product_search" placeholder="Cari nama atau kode produk" autocomplete="off">
+                            <label class="mb-1 block font-medium text-xs">Produk</label>
+                            <input class="field text-xs" type="text" id="stock_product_search" placeholder="Cari nama atau kode produk" autocomplete="off">
                             <input type="hidden" id="stock_product_id">
                             <div id="stockProductList" class="search-select-list hidden"></div>
                         </div>
 
                         <div>
                             <div class="mb-2 flex items-center justify-between gap-2">
-                                <label class="block font-medium">Detail Item Masuk</label>
-                                <button class="btn btn-secondary" type="button" id="addStockRow">
+                                <label class="block font-medium text-xs">Detail Item Masuk</label>
+                                <button class="btn btn-secondary text-xs py-1 px-2.5 min-h-[30px]" type="button" id="addStockRow">
                                     <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
                                     <span>Tambah Baris</span>
                                 </button>
                             </div>
                             <div id="stockItemRows" class="space-y-2"></div>
-                            <div class="mt-2 text-[11px] text-[color:var(--muted)]">Satu baris mewakili satu unit stok masuk. Serial number boleh dikosongkan jika produk tidak memakai serial.</div>
+                            <div class="mt-2 text-[11px] text-[color:var(--muted)]">Satu baris mewakili satu unit stok masuk. Serial/IMEI opsional jika produk non-serial.</div>
                         </div>
 
                         <div>
-                            <label class="mb-1 block font-medium">Catatan</label>
-                            <input class="field" type="text" id="stock_note" placeholder="Barang datang dari supplier A">
+                            <label class="mb-1 block font-medium text-xs">Catatan</label>
+                            <input class="field text-xs" type="text" id="stock_note" placeholder="Contoh: Barang masuk dari supplier">
                         </div>
 
-                        <button class="btn btn-primary w-full" type="submit">
+                        <button class="btn btn-primary w-full text-xs" type="submit">
                             <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/><path d="M4 4h16v16H4z"/></svg></span>
                             <span>Simpan Stok Masuk</span>
                         </button>
                     </div>
                 </form>
 
-                <div class="list-panel p-3">
-                    <div class="mb-2 text-sm font-semibold">Pergerakan Terakhir</div>
+                <div class="list-panel p-4">
+                    <div class="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">Pergerakan Stok Terakhir</div>
                     <div id="stockMovementList" class="space-y-2"></div>
                 </div>
             </div>
 
-            <div class="list-panel p-3">
-                <div class="mb-3 flex items-center justify-between gap-3">
-                    <div class="text-sm font-semibold">Stok Saat Ini</div>
-                    <input id="stockSearch" class="field max-w-xs" type="text" placeholder="Cari produk">
+            <div class="list-panel p-4">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div class="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">Daftar Stok Produk Fisik</div>
+                    <input id="stockSearch" class="field max-w-xs text-xs" type="text" placeholder="Cari nama, kode, serial...">
                 </div>
                 <div class="table-wrap">
-                    <table id="stockMainTable" class="table-grid min-w-full text-sm">
+                    <table id="stockMainTable" class="table-grid min-w-full text-xs">
                         <thead class="text-left">
                             <tr>
                                 <th data-sort="code">Kode</th>

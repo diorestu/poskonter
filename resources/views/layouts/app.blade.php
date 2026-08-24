@@ -66,13 +66,6 @@
             <main class="{{ $embedded ? 'p-0' : 'workspace p-4' }}">
                 @yield('content')
             </main>
-
-            @unless ($embedded)
-            <footer class="statusbar flex items-center justify-between px-3 py-1.5 text-[11px] text-[color:var(--muted)]">
-                <div>Copyright PT Numa Teknologi Nusantara</div>
-                <div>{{ now()->format('d M Y') }}</div>
-            </footer>
-            @endunless
         </div>
 
         <script>

@@ -368,6 +368,11 @@ class PulsaController extends Controller
         $products = Product::query()
             ->with(['provider:id,name', 'provider.wallets:id,name', 'sourceWallets:id,name'])
             ->where('is_active', true)
+            ->where(function ($query): void {
+                $query->where('product_type', 'voucher')
+                    ->orWhere('category', 'like', '%voucher%')
+                    ->orWhere('name', 'like', '%voucher%');
+            })
             ->orderBy('category')
             ->orderBy('name')
             ->get()
