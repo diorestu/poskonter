@@ -29,7 +29,9 @@ class PosTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('POS');
-        $response->assertSee('Halaman kasir untuk transaksi penjualan.');
+        $response->assertSee('HP dan Aksesoris');
+        $response->assertSee('Voucher');
+        $response->assertSee('Pulsa Elektrik');
     }
 
     public function test_guest_is_redirected_to_login_page(): void

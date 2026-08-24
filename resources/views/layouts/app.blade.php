@@ -10,8 +10,10 @@
     <body class="m-0">
         @php
             $productMenuActive = request()->routeIs('master.physical.*') || request()->routeIs('master.electric.*');
+            $embedded = request()->boolean('embedded');
         @endphp
-        <div class="window-shell w-full overflow-hidden">
+        <div class="{{ $embedded ? 'w-full' : 'window-shell w-full overflow-hidden' }}">
+            @unless ($embedded)
             <header class="title-bar flex items-center justify-between px-4 py-2">
                 <div class="flex items-center gap-3">
                     <div class="flex h-8 w-8 items-center justify-center border border-white/40 bg-white/15 text-sm font-bold">Z</div>
@@ -41,8 +43,6 @@
                         <a href="{{ route('pos.index') }}" class="menu-link {{ request()->routeIs('pos.*') ? 'menu-link-active' : '' }}">POS</a>
                         <a href="{{ route('stock.index') }}" class="menu-link {{ request()->routeIs('stock.*') ? 'menu-link-active' : '' }}">Stock</a>
                         <a href="{{ route('expenses.index') }}" class="menu-link {{ request()->routeIs('expenses.*') ? 'menu-link-active' : '' }}">Pengeluaran</a>
-                        <a href="{{ route('pulsa.index') }}" class="menu-link {{ request()->routeIs('pulsa.*') ? 'menu-link-active' : '' }}">Pulsa Elektrik</a>
-                        <a href="{{ route('voucher.index') }}" class="menu-link {{ request()->routeIs('voucher.*') ? 'menu-link-active' : '' }}">Voucher Pulsa</a>
                         <a href="{{ route('sales-history.index') }}" class="menu-link {{ request()->routeIs('sales-history.*') ? 'menu-link-active' : '' }}">Riwayat Penjualan</a>
                         @if (auth()->user()->isAdmin())
                             <a href="{{ route('report.index') }}" class="menu-link {{ request()->routeIs('report.*') ? 'menu-link-active' : '' }}">Report</a>
@@ -61,15 +61,18 @@
                     </div>
                 </div>
             </nav>
+            @endunless
 
-            <main class="workspace p-4">
+            <main class="{{ $embedded ? 'p-0' : 'workspace p-4' }}">
                 @yield('content')
             </main>
 
+            @unless ($embedded)
             <footer class="statusbar flex items-center justify-between px-3 py-1.5 text-[11px] text-[color:var(--muted)]">
                 <div>Copyright PT Numa Teknologi Nusantara</div>
                 <div>{{ now()->format('d M Y') }}</div>
             </footer>
+            @endunless
         </div>
 
         <script>

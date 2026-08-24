@@ -5,11 +5,20 @@
         <div class="toolbar flex items-center justify-between px-4 py-3">
             <div>
                 <h1 class="font-semibold">POS</h1>
-                <p class="text-[color:var(--muted)]">Halaman kasir untuk transaksi penjualan.</p>
+                <p class="text-[color:var(--muted)]">Halaman kasir untuk HP dan aksesoris, voucher, dan pulsa elektrik.</p>
             </div>
             <div class="text-[11px] text-[color:var(--muted)]">Input cepat, satu transaksi per layar</div>
         </div>
 
+        <div class="px-4 pt-4">
+            <div class="inline-flex flex-wrap gap-1 rounded-[8px] border border-[#d7e0eb] bg-white p-1">
+                <button type="button" class="pos-main-tab menu-link menu-link-active" data-pos-tab="hp">HP dan Aksesoris</button>
+                <button type="button" class="pos-main-tab menu-link" data-pos-tab="voucher">Voucher</button>
+                <button type="button" class="pos-main-tab menu-link" data-pos-tab="pulsa">Pulsa Elektrik</button>
+            </div>
+        </div>
+
+        <div class="pos-main-panel" data-pos-panel="hp">
         <div class="grid gap-4 p-4 xl:grid-cols-[0.95fr_1.05fr]">
             <div class="space-y-4">
                 <div class="pos-product-panel p-4">
@@ -119,6 +128,23 @@
                 </div>
             </div>
         </div>
+        </div>
+
+        <div class="pos-main-panel hidden p-4" data-pos-panel="voucher">
+            <iframe
+                class="min-h-[760px] w-full border-0"
+                src="{{ route('voucher.index', ['embedded' => 1]) }}"
+                title="Voucher"
+            ></iframe>
+        </div>
+
+        <div class="pos-main-panel hidden p-4" data-pos-panel="pulsa">
+            <iframe
+                class="min-h-[760px] w-full border-0"
+                src="{{ route('pulsa.index', ['embedded' => 1]) }}"
+                title="Pulsa Elektrik"
+            ></iframe>
+        </div>
     </section>
 
     <div id="paymentModal" class="modal-backdrop hidden">
@@ -221,17 +247,27 @@
 
             function renderRecentSales(items) {
                 $('#recentSalesList').html(items.length ? items.map((item) => `
-                    <div class="recent-card">
+                    <div class="recent-card p-3">
                         <div class="flex items-center justify-between gap-3">
                             <div>
                                 <div class="font-semibold">${item.invoice_number}</div>
                                 <div class="text-[11px] text-[color:var(--muted)]">${item.customer_name || 'Pelanggan umum'} · ${paymentMethodLabel(item.payment_method)}</div>
                             </div>
                             <div class="text-right">
-                                <div class="font-semibold">${money(item.total)}</div>
+                                <div class="font-semibold text-emerald-700">${money(item.total)}</div>
                                 <div class="text-[11px] text-[color:var(--muted)]">${new Date(item.sale_date).toLocaleString('id-ID')}</div>
                             </div>
                         </div>
+                        ${item.items && item.items.length ? `
+                            <div class="mt-2 pt-2 border-t border-[#edf2f7] space-y-1">
+                                ${item.items.map((si) => `
+                                    <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
+                                        <span>${si.product?.name || 'Produk'} ${si.product?.variant ? `(${si.product.variant})` : ''} <span class="text-[color:var(--foreground)] font-medium">x${si.quantity}</span></span>
+                                        ${si.serial_number ? `<span class="badge badge-ok font-mono text-[10px]">IMEI: ${si.serial_number}</span>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
                     </div>
                 `).join('') : '<div class="text-[color:var(--muted)]">Belum ada transaksi.</div>');
             }
@@ -257,43 +293,73 @@
                     ? state.products
                     : state.products.filter((product) => product.category === state.activeCategory);
 
-                $('#productPicker').html(visibleProducts.length ? visibleProducts.map((product) => `
-                    <button type="button" class="product-card add-to-cart ${Number(product.stock) < 1 ? 'product-card-disabled' : ''}" data-id="${product.id}" ${Number(product.stock) < 1 ? 'disabled' : ''}>
-                        <div>
-                            ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}" class="mb-3 h-24 w-full rounded-[6px] object-cover border border-[#d7e0eb]">` : ''}
-                            <div class="font-semibold">${product.name}</div>
-                            <div class="mt-1 text-[11px] text-[color:var(--muted)]">${product.variant || product.unit}</div>
-                        </div>
-                        <div class="mt-3 flex items-end justify-between gap-3">
-                            <span class="product-card-price">${money(product.price)}</span>
-                            <span class="product-card-stock">Stok ${product.stock}</span>
-                        </div>
-                    </button>
-                `).join('') : '<div class="col-span-full rounded-2xl border border-dashed border-[#cad8e8] bg-white px-4 py-8 text-center text-[color:var(--muted)]">Tidak ada produk pada kategori ini.</div>');
+                $('#productPicker').html(visibleProducts.length ? visibleProducts.map((product) => {
+                    const serialCount = product.available_serials_count || 0;
+                    return `
+                        <button type="button" class="product-card add-to-cart ${Number(product.stock) < 1 ? 'product-card-disabled' : ''}" data-id="${product.id}" ${Number(product.stock) < 1 ? 'disabled' : ''}>
+                            <div>
+                                ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}" class="mb-3 h-24 w-full rounded-[6px] object-cover border border-[#d7e0eb]">` : ''}
+                                <div class="font-semibold text-left">${product.name}</div>
+                                <div class="mt-1 flex items-center justify-between text-[11px] text-[color:var(--muted)]">
+                                    <span>${product.variant || product.unit}</span>
+                                    ${serialCount > 0 ? `<span class="badge badge-ok text-[10px]">${serialCount} IMEI</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-end justify-between gap-3">
+                                <span class="product-card-price">${money(product.price)}</span>
+                                <span class="product-card-stock">Stok ${product.stock}</span>
+                            </div>
+                        </button>
+                    `;
+                }).join('') : '<div class="col-span-full rounded-2xl border border-dashed border-[#cad8e8] bg-white px-4 py-8 text-center text-[color:var(--muted)]">Tidak ada produk pada kategori ini.</div>');
             }
 
             function renderCart() {
                 if (!state.cart.length) {
                     $('#cartTable').html('<tr><td colspan="5" class="text-center text-[color:var(--muted)]">Keranjang masih kosong.</td></tr>');
                 } else {
-                    $('#cartTable').html(state.cart.map((item) => `
-                        <tr>
-                            <td>
-                                <div class="font-medium">${item.name}</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">${item.variant || item.unit || ''}</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">${money(item.price)}</div>
-                            </td>
-                            <td><input class="field cart-qty field-number" type="text" inputmode="numeric" data-number-mask data-id="${item.id}" value="${item.quantity}"></td>
-                            <td><input class="field cart-serial" type="text" data-id="${item.id}" value="${item.serial_number || ''}" placeholder="IMEI / Serial"></td>
-                            <td class="font-semibold">${money(item.price * item.quantity)}</td>
-                            <td>
-                                <button type="button" class="remove-cart inline-flex items-center gap-1 text-[color:var(--danger)]" data-id="${item.id}">
-                                    <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
-                                    <span>Hapus</span>
-                                </button>
-                            </td>
-                        </tr>
-                    `).join(''));
+                    $('#cartTable').html(state.cart.map((item) => {
+                        const serials = item.available_serials || [];
+                        let serialCell = '';
+
+                        if (serials.length > 0) {
+                            serialCell = `
+                                <div class="space-y-1 min-w-[150px]">
+                                    <select class="select cart-serial-select text-xs py-1" data-id="${item.id}">
+                                        <option value="">-- Pilih IMEI (${serials.length} ada) --</option>
+                                        ${serials.map((s) => `
+                                            <option value="${s.serial_number}" ${item.serial_number === s.serial_number ? 'selected' : ''}>
+                                                ${s.serial_number} ${s.expiry_date ? `(Exp: ${s.expiry_date})` : ''}
+                                            </option>
+                                        `).join('')}
+                                        <option value="__custom__" ${item.serial_number && !serials.some((s) => s.serial_number === item.serial_number) ? 'selected' : ''}>Ketik Manual / Scan</option>
+                                    </select>
+                                    <input class="field cart-serial text-xs py-1 font-mono" type="text" data-id="${item.id}" value="${item.serial_number || ''}" placeholder="Ketik / Scan IMEI">
+                                </div>
+                            `;
+                        } else {
+                            serialCell = `<input class="field cart-serial text-xs py-1 font-mono" type="text" data-id="${item.id}" value="${item.serial_number || ''}" placeholder="IMEI / Serial (opsional)">`;
+                        }
+
+                        return `
+                            <tr>
+                                <td>
+                                    <div class="font-medium">${item.name}</div>
+                                    <div class="text-[11px] text-[color:var(--muted)]">${item.variant || item.unit || ''}</div>
+                                    <div class="text-[11px] text-[color:var(--muted)]">${money(item.price)}</div>
+                                </td>
+                                <td><input class="field cart-qty field-number text-xs" type="text" inputmode="numeric" data-number-mask data-id="${item.id}" value="${item.quantity}"></td>
+                                <td>${serialCell}</td>
+                                <td class="font-semibold text-xs">${money(item.price * item.quantity)}</td>
+                                <td>
+                                    <button type="button" class="remove-cart inline-flex items-center gap-1 text-[color:var(--danger)] text-xs" data-id="${item.id}">
+                                        <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
+                                        <span>Hapus</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join(''));
                     bindNumberMasks(document.getElementById('cartTable'));
                 }
 
@@ -354,6 +420,10 @@
                         showAlert('Stok produk kosong.', 'error');
                         return;
                     }
+
+                    const availableSerials = product.available_serials || [];
+                    const defaultSerial = availableSerials.length > 0 ? availableSerials[0].serial_number : '';
+
                     state.cart.push({
                         id: product.id,
                         name: product.name,
@@ -363,7 +433,8 @@
                         price: Number(product.price),
                         stock: Number(product.stock),
                         quantity: 1,
-                        serial_number: '',
+                        serial_number: defaultSerial,
+                        available_serials: availableSerials,
                     });
                 }
 
@@ -384,10 +455,35 @@
                 renderCart();
             });
 
-            $(document).on('input', '.cart-serial', function () {
-                const item = state.cart.find((entry) => entry.id === Number($(this).data('id')));
+            $(document).on('change', '.cart-serial-select', function () {
+                const id = Number($(this).data('id'));
+                const item = state.cart.find((entry) => entry.id === id);
                 if (!item) return;
-                item.serial_number = $(this).val();
+                const val = $(this).val();
+                if (val === '__custom__') {
+                    item.serial_number = '';
+                    $(`.cart-serial[data-id="${id}"]`).val('').focus();
+                } else {
+                    item.serial_number = val;
+                    $(`.cart-serial[data-id="${id}"]`).val(val);
+                }
+            });
+
+            $(document).on('input', '.cart-serial', function () {
+                const id = Number($(this).data('id'));
+                const item = state.cart.find((entry) => entry.id === id);
+                if (!item) return;
+                const val = $(this).val().trim();
+                item.serial_number = val;
+                const $sel = $(`.cart-serial-select[data-id="${id}"]`);
+                if ($sel.length) {
+                    const hasOption = $sel.find(`option[value="${val}"]`).length > 0;
+                    if (hasOption) {
+                        $sel.val(val);
+                    } else {
+                        $sel.val(val ? '__custom__' : '');
+                    }
+                }
             });
 
             $(document).on('click', '.remove-cart', function () {
@@ -402,6 +498,14 @@
             });
 
             $('#payment_method').on('change', updatePaymentLabels);
+
+            $('.pos-main-tab').on('click', function () {
+                const tab = $(this).data('pos-tab');
+                $('.pos-main-tab').removeClass('menu-link-active');
+                $(this).addClass('menu-link-active');
+                $('.pos-main-panel').addClass('hidden');
+                $(`.pos-main-panel[data-pos-panel="${tab}"]`).removeClass('hidden');
+            });
 
             $('#openPaymentModal').on('click', function () {
                 if (!state.cart.length) {

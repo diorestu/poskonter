@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Expense;
 use App\Models\Product;
 use App\Models\Provider;
+use App\Models\PulsaSale;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\StockMovement;
 use App\Models\Wallet;
 use Illuminate\Http\RedirectResponse;
@@ -72,10 +74,11 @@ class PosController extends Controller
             ->map(fn (Product $product) => $this->serializeProduct($product));
 
         $recentSales = Sale::query()
+            ->with(['items.product:id,name,code,variant'])
             ->latest('sale_date')
             ->latest('id')
-            ->limit(8)
-            ->get(['id', 'invoice_number', 'sale_date', 'customer_name', 'payment_method', 'total', 'cash_paid', 'change_amount']);
+            ->limit(10)
+            ->get();
 
         $stockMovements = StockMovement::query()
             ->with('product:id,name,code,unit')
@@ -123,118 +126,124 @@ class PosController extends Controller
             'product_type' => ['required', 'string', 'in:regular,pulsa'],
             'category' => ['nullable', 'string', 'max:80'],
             'provider_id' => ['nullable', 'integer', 'exists:providers,id'],
-            'variant' => ['nullable', 'string', 'max:120'],
+            'variant' => ['nullable', 'string', 'max:80'],
             'serial_number' => ['nullable', 'string', 'max:120'],
-            'image' => ['nullable', 'image', 'max:2048'],
             'unit' => ['required', 'string', 'max:30'],
             'price' => ['required', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'stock' => ['nullable', 'integer', 'min:0'],
             'minimum_stock' => ['nullable', 'integer', 'min:0'],
-            'wallet_ids' => ['sometimes', 'array'],
-            'wallet_ids.*' => ['integer', 'distinct', 'exists:wallets,id'],
+            'image' => ['nullable', 'image', 'max:2048'],
+            'wallet_ids' => ['nullable', 'array'],
+            'wallet_ids.*' => ['integer', 'exists:wallets,id'],
         ]);
 
+        $imagePath = null;
         if ($request->hasFile('image')) {
-            $validated['image_path'] = $request->file('image')->store('products', 'public');
+            $imagePath = $request->file('image')->store('products', 'public');
         }
 
-        $provider = $validated['product_type'] === 'pulsa'
-            ? $this->resolvePulsaProvider($validated)
-            : null;
-
-        if ($validated['product_type'] === 'regular' && blank($validated['category'] ?? null)) {
-            throw ValidationException::withMessages([
-                'category' => 'Kategori produk fisik wajib diisi.',
-            ]);
+        $provider = null;
+        if (($validated['product_type'] ?? null) === 'pulsa') {
+            $provider = $this->resolvePulsaProvider($validated);
+            $validated['category'] = $provider->name;
+            $validated['provider_id'] = $provider->id;
+        } else {
+            $validated['provider_id'] = null;
         }
 
-        $product = DB::transaction(function () use ($validated, $provider): Product {
+        $product = DB::transaction(function () use ($validated, $imagePath, $provider): Product {
             $product = Product::create([
                 'code' => $validated['code'],
                 'name' => $validated['name'],
                 'product_type' => $validated['product_type'],
-                'provider_id' => $provider?->id,
-                'category' => $provider?->name ?? $validated['category'],
+                'provider_id' => $validated['provider_id'] ?? null,
+                'category' => $validated['category'] ?? null,
                 'variant' => $validated['variant'] ?? null,
                 'serial_number' => $validated['serial_number'] ?? null,
-                'image_path' => $validated['image_path'] ?? null,
+                'image_path' => $imagePath,
                 'unit' => $validated['unit'],
                 'price' => $validated['price'],
                 'cost_price' => $validated['cost_price'] ?? 0,
-                'minimum_stock' => $validated['product_type'] === 'pulsa' ? 0 : ($validated['minimum_stock'] ?? 0),
-                'stock' => 0,
+                'stock' => $validated['product_type'] === 'pulsa' ? 0 : ($validated['stock'] ?? 0),
+                'minimum_stock' => $validated['minimum_stock'] ?? 0,
                 'is_active' => true,
             ]);
 
-            if (($validated['product_type'] ?? null) !== 'pulsa') {
-                $product->sourceWallets()->sync([]);
-            } elseif (array_key_exists('wallet_ids', $validated)) {
-                $provider?->wallets()->syncWithoutDetaching($validated['wallet_ids'] ?? []);
+            if ($product->isPulsa()) {
+                if (array_key_exists('wallet_ids', $validated)) {
+                    $provider?->wallets()->sync($validated['wallet_ids'] ?? []);
+                }
+            } elseif ($product->stock > 0) {
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'type' => 'in',
+                    'quantity' => $product->stock,
+                    'cost_price' => $product->cost_price,
+                    'serial_number' => $product->serial_number,
+                    'note' => 'Stok awal produk baru',
+                ]);
             }
 
-            return $product->load(['sourceWallets:id,name', 'provider:id,name', 'provider.wallets:id,name']);
+            return $product;
         });
 
         return response()->json([
-            'message' => 'Produk berhasil ditambahkan.',
-            'product' => $this->serializeProduct($product),
+            'message' => 'Produk berhasil disimpan.',
+            'product' => $this->serializeProduct($product->load(['sourceWallets:id,name', 'provider:id,name', 'provider.wallets:id,name'])),
         ], 201);
     }
 
     public function updateProduct(Request $request, Product $product): JsonResponse
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'max:50', 'unique:products,code,' . $product->id],
+            'code' => ['required', 'string', 'max:50', Rule::unique('products', 'code')->ignore($product->id)],
             'name' => ['required', 'string', 'max:120'],
-            'product_type' => ['required', 'string', 'in:regular,pulsa'],
+            'product_type' => ['nullable', 'string', 'in:regular,pulsa'],
             'category' => ['nullable', 'string', 'max:80'],
             'provider_id' => ['nullable', 'integer', 'exists:providers,id'],
-            'variant' => ['nullable', 'string', 'max:120'],
+            'variant' => ['nullable', 'string', 'max:80'],
             'serial_number' => ['nullable', 'string', 'max:120'],
-            'image' => ['nullable', 'image', 'max:2048'],
             'unit' => ['required', 'string', 'max:30'],
             'price' => ['required', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'minimum_stock' => ['nullable', 'integer', 'min:0'],
-            'is_active' => ['nullable', 'boolean'],
-            'wallet_ids' => ['sometimes', 'array'],
-            'wallet_ids.*' => ['integer', 'distinct', 'exists:wallets,id'],
+            'image' => ['nullable', 'image', 'max:2048'],
+            'wallet_ids' => ['nullable', 'array'],
+            'wallet_ids.*' => ['integer', 'exists:wallets,id'],
         ]);
 
+        $imagePath = $product->image_path;
         if ($request->hasFile('image')) {
-            if ($product->image_path) {
-                Storage::disk('public')->delete($product->image_path);
+            if ($imagePath && Storage::disk('public')->exists($imagePath)) {
+                Storage::disk('public')->delete($imagePath);
             }
-
-            $validated['image_path'] = $request->file('image')->store('products', 'public');
+            $imagePath = $request->file('image')->store('products', 'public');
         }
 
-        $provider = $validated['product_type'] === 'pulsa'
-            ? $this->resolvePulsaProvider($validated)
-            : null;
-
-        if ($validated['product_type'] === 'regular' && blank($validated['category'] ?? null)) {
-            throw ValidationException::withMessages([
-                'category' => 'Kategori produk fisik wajib diisi.',
-            ]);
+        $provider = null;
+        if (($validated['product_type'] ?? $product->product_type) === 'pulsa') {
+            $provider = $this->resolvePulsaProvider($validated);
+            $validated['category'] = $provider->name;
+            $validated['provider_id'] = $provider->id;
+        } else {
+            $validated['provider_id'] = null;
         }
 
-        DB::transaction(function () use ($product, $validated, $provider): void {
+        DB::transaction(function () use ($product, $validated, $imagePath, $provider): void {
             $product->update([
                 'code' => $validated['code'],
                 'name' => $validated['name'],
-                'product_type' => $validated['product_type'],
-                'provider_id' => $provider?->id,
-                'category' => $provider?->name ?? $validated['category'],
+                'product_type' => $validated['product_type'] ?? $product->product_type,
+                'provider_id' => $validated['provider_id'] ?? null,
+                'category' => $validated['category'] ?? null,
                 'variant' => $validated['variant'] ?? null,
                 'serial_number' => $validated['serial_number'] ?? null,
-                'image_path' => $validated['image_path'] ?? $product->image_path,
+                'image_path' => $imagePath,
                 'unit' => $validated['unit'],
                 'price' => $validated['price'],
-                'cost_price' => $validated['cost_price'] ?? 0,
-                'minimum_stock' => $validated['product_type'] === 'pulsa' ? 0 : ($validated['minimum_stock'] ?? 0),
-                'stock' => $validated['product_type'] === 'pulsa' ? 0 : $product->stock,
-                'is_active' => $validated['is_active'] ?? true,
+                'cost_price' => $validated['cost_price'] ?? $product->cost_price,
+                'minimum_stock' => $validated['minimum_stock'] ?? 0,
             ]);
 
             if (($validated['product_type'] ?? null) !== 'pulsa') {
@@ -306,7 +315,7 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'customer_name' => ['nullable', 'string', 'max:120'],
-            'shift' => ['required', 'string', 'in:pagi,sore'],
+            'shift' => ['nullable', 'string', 'in:pagi,sore'],
             'payment_method' => ['required', 'string', 'in:cash,qris,transfer,debit'],
             'discount' => ['nullable', 'numeric', 'min:0'],
             'cash_paid' => ['required', 'numeric', 'min:0'],
@@ -353,7 +362,7 @@ class PosController extends Controller
 
                 $items[] = [
                     'product' => $product,
-                    'serial_number' => $item['serial_number'] ?? null,
+                    'serial_number' => ! empty($item['serial_number']) ? trim($item['serial_number']) : null,
                     'quantity' => $item['quantity'],
                     'price' => $product->price,
                     'subtotal' => $lineSubtotal,
@@ -374,7 +383,7 @@ class PosController extends Controller
                 'invoice_number' => 'INV-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
                 'sale_date' => now(),
                 'customer_name' => $validated['customer_name'] ?? null,
-                'shift' => $validated['shift'],
+                'shift' => $validated['shift'] ?? 'pagi',
                 'payment_method' => $validated['payment_method'],
                 'subtotal' => $subtotal,
                 'discount' => $discount,
@@ -398,6 +407,8 @@ class PosController extends Controller
                     'product_id' => $item['product']->id,
                     'type' => 'sale',
                     'quantity' => $item['quantity'],
+                    'serial_number' => $item['serial_number'] ?? null,
+                    'cost_price' => $item['product']->cost_price,
                     'note' => 'Penjualan ' . $sale->invoice_number,
                 ]);
             }
@@ -411,7 +422,7 @@ class PosController extends Controller
         ], 201);
     }
 
-    private function serializeProduct(Product $product): array
+    private function serializeProduct(Product $product, bool $includeSerials = true): array
     {
         $providerWallets = $product->relationLoaded('provider') && $product->provider?->relationLoaded('wallets')
             ? $product->provider->wallets
@@ -425,6 +436,8 @@ class PosController extends Controller
                 'name' => $wallet->name,
             ])->values()->all();
 
+        $serials = $includeSerials ? $this->getAvailableSerials($product) : [];
+
         return [
             'id' => $product->id,
             'code' => $product->code,
@@ -435,6 +448,8 @@ class PosController extends Controller
             'variant' => $product->variant,
             'product_type' => $product->product_type,
             'serial_number' => $product->serial_number,
+            'available_serials' => $serials,
+            'available_serials_count' => count($serials),
             'image_path' => $product->image_path,
             'image_url' => $product->image_path ? Storage::disk('public')->url($product->image_path) : null,
             'unit' => $product->unit,
@@ -446,6 +461,87 @@ class PosController extends Controller
             'source_wallet_ids' => array_column($wallets, 'id'),
             'source_wallets' => $wallets,
         ];
+    }
+
+    private function getAvailableSerials(Product $product): array
+    {
+        $inMovements = StockMovement::query()
+            ->where('product_id', $product->id)
+            ->whereIn('type', ['in', 'adjustment'])
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '')
+            ->orderBy('id', 'asc')
+            ->get(['id', 'serial_number', 'expiry_date', 'cost_price']);
+
+        if ($inMovements->isEmpty() && empty($product->serial_number)) {
+            return [];
+        }
+
+        $soldFromStock = StockMovement::query()
+            ->where('product_id', $product->id)
+            ->where('type', 'sale')
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '')
+            ->pluck('serial_number')
+            ->all();
+
+        $soldFromPulsa = PulsaSale::query()
+            ->where('product_id', $product->id)
+            ->where('status', '!=', 'cancelled')
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '')
+            ->pluck('serial_number')
+            ->all();
+
+        $soldFromSaleItems = SaleItem::query()
+            ->where('product_id', $product->id)
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '')
+            ->pluck('serial_number')
+            ->all();
+
+        $allSold = array_merge($soldFromStock, $soldFromPulsa, $soldFromSaleItems);
+        $soldCounts = array_count_values(array_map('strval', $allSold));
+
+        $available = [];
+        $consumedCounts = [];
+
+        foreach ($inMovements as $movement) {
+            $sn = (string) $movement->serial_number;
+            $totalSold = $soldCounts[$sn] ?? 0;
+            $alreadyConsumed = $consumedCounts[$sn] ?? 0;
+
+            if ($alreadyConsumed < $totalSold) {
+                $consumedCounts[$sn] = $alreadyConsumed + 1;
+                continue;
+            }
+
+            $available[] = [
+                'id' => $movement->id,
+                'serial_number' => $sn,
+                'expiry_date' => $movement->expiry_date ? $movement->expiry_date->format('Y-m-d') : null,
+                'cost_price' => (float) $movement->cost_price,
+            ];
+        }
+
+        if (! empty($product->serial_number)) {
+            $productSn = (string) $product->serial_number;
+            $totalSold = $soldCounts[$productSn] ?? 0;
+            $alreadyConsumed = $consumedCounts[$productSn] ?? 0;
+            if ($alreadyConsumed >= $totalSold) {
+                $exists = collect($available)->contains('serial_number', $productSn);
+                if (! $exists) {
+                    $available[] = [
+                        'id' => null,
+                        'serial_number' => $productSn,
+                        'expiry_date' => null,
+                        'cost_price' => (float) $product->cost_price,
+                    ];
+                }
+            }
+        }
+
+        return $available;
     }
 
     private function resolvePulsaProvider(array $validated): Provider
