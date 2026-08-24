@@ -28,9 +28,10 @@ class AuthController extends Controller
             ]);
         }
 
+        $intended = $request->session()->pull('url.intended');
         $request->session()->regenerate();
 
-        return redirect()->intended(route('pos.index'));
+        return redirect()->to($intended ?: route('pos.index'));
     }
 
     public function logout(Request $request): RedirectResponse
