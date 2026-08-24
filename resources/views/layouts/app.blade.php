@@ -12,7 +12,7 @@
             $productMenuActive = request()->routeIs('master.physical.*') || request()->routeIs('master.electric.*');
             $embedded = request()->boolean('embedded');
         @endphp
-        <div class="{{ $embedded ? 'w-full' : 'window-shell w-full overflow-hidden' }}">
+        <div class="{{ $embedded ? 'w-full' : 'window-shell w-full min-h-screen' }}">
             @unless ($embedded)
             <header class="title-bar flex items-center justify-between px-4 py-2">
                 <div class="flex items-center gap-3">

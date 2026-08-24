@@ -19,6 +19,15 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, \Illuminate\Http\Request $request) {
             if ($e->getStatusCode() === 419) {
+                \Illuminate\Support\Facades\Log::warning('Login/CSRF 419 Page Expired Occurred', [
+                    'ip' => $request->ip(),
+                    'url' => $request->fullUrl(),
+                    'method' => $request->method(),
+                    'session_driver' => config('session.driver'),
+                    'has_token' => $request->has('_token'),
+                    'user_agent' => $request->userAgent(),
+                ]);
+
                 if ($request->expectsJson()) {
                     return response()->json(['message' => 'Sesi telah kedaluwarsa. Silakan muat ulang halaman.'], 419);
                 }

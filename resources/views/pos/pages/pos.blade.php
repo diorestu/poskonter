@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <section class="pos-shell h-[calc(100vh-105px)] flex flex-col overflow-hidden">
+    <section class="pos-shell min-h-[calc(100vh-105px)] flex flex-col overflow-x-hidden max-w-full">
         <div class="px-4 py-2.5 border-b border-[#e2e8f0] flex flex-wrap items-center justify-between gap-2 shrink-0">
             <div class="inline-flex rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-0.5 gap-1">
                 <button type="button" class="pos-main-tab menu-link menu-link-active text-xs font-semibold py-1 px-3" data-pos-tab="hp">HP dan Aksesoris</button>
@@ -11,38 +11,38 @@
             <div class="text-[11px] text-[color:var(--muted)] font-medium">Kasir Cepat POS</div>
         </div>
 
-        <div class="pos-main-panel flex-1 overflow-hidden p-3" data-pos-panel="hp">
-        <div class="grid gap-3 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_420px] h-full overflow-hidden items-stretch">
-            <!-- Left Column: Product Grid (Adapts to viewport, scrolls internally) -->
-            <div class="pos-product-panel p-3 flex flex-col h-full overflow-hidden">
+        <div class="pos-main-panel flex-1 overflow-x-hidden p-3 max-w-full" data-pos-panel="hp">
+        <div class="grid gap-3 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_420px] max-w-full min-w-0 items-stretch">
+            <!-- Left Column: Product Grid (Adapts to viewport, scrolls vertically) -->
+            <div class="pos-product-panel p-3 flex flex-col min-w-0 overflow-x-hidden">
                 <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 shrink-0">
-                    <div id="categoryTabs" class="category-tabs flex-1"></div>
+                    <div id="categoryTabs" class="category-tabs flex-1 min-w-0"></div>
                     <div class="w-full sm:w-52">
                         <input type="text" id="posProductSearch" class="field text-xs py-1 px-2" placeholder="Cari nama / kode...">
                     </div>
                 </div>
-                <div id="productPicker" class="product-grid flex-1 overflow-y-auto pr-1"></div>
+                <div id="productPicker" class="product-grid flex-1 overflow-y-auto overflow-x-hidden pr-1"></div>
             </div>
 
-            <!-- Right Column: Checkout Sidebar (Adapts to viewport, no outer scroll) -->
-            <div class="h-full overflow-hidden">
+            <!-- Right Column: Checkout Sidebar (Scrolls vertically only) -->
+            <div class="min-w-0 overflow-x-hidden">
                 <form id="saleForm" class="pos-product-panel p-3.5 flex flex-col h-full justify-between overflow-hidden">
                     <div class="flex flex-col flex-1 overflow-hidden min-h-0">
                         <div class="mb-2.5 grid gap-2 grid-cols-3 shrink-0">
                             <div>
-                                <label class="mb-0.5 block font-medium text-xs text-[color:var(--muted)]">Pelanggan</label>
-                                <input class="field py-1 px-2 text-xs" type="text" id="customer_name" placeholder="Umum">
+                                <label class="mb-0.5 block font-medium text-[color:var(--muted)]">Pelanggan</label>
+                                <input class="field py-1 px-2" type="text" id="customer_name" placeholder="Umum">
                             </div>
                             <div>
-                                <label class="mb-0.5 block font-medium text-xs text-[color:var(--muted)]">Shift</label>
-                                <select class="select py-1 px-2 text-xs" id="shift">
+                                <label class="mb-0.5 block font-medium text-[color:var(--muted)]">Shift</label>
+                                <select class="select py-1 px-2" id="shift">
                                     <option value="pagi">Pagi</option>
                                     <option value="sore">Sore</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="mb-0.5 block font-medium text-xs text-[color:var(--muted)]">Metode</label>
-                                <select class="select py-1 px-2 text-xs" id="payment_method">
+                                <label class="mb-0.5 block font-medium text-[color:var(--muted)]">Metode</label>
+                                <select class="select py-1 px-2" id="payment_method">
                                     <option value="cash">Tunai</option>
                                     <option value="qris">QRIS</option>
                                     <option value="transfer">Transfer</option>

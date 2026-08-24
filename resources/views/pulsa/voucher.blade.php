@@ -1,21 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
-    <section class="pane">
-        <div class="toolbar flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <div>
-                <h1 class="font-semibold text-lg">Penjualan Voucher</h1>
-                <p class="text-[color:var(--muted)] text-sm">Pilih kategori voucher, tentukan serial number dari stok atau manual, dan proses transaksi kasir.</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <div class="rounded-lg border border-[#d8e1ec] bg-white px-3 py-1.5 text-xs">
-                    <span class="text-[color:var(--muted)]">Total Voucher Hari Ini:</span>
-                    <strong id="todayVoucherTotal" class="ml-1 text-[color:var(--accent)]">Rp 0</strong>
-                </div>
-            </div>
-        </div>
-
-        <div class="grid gap-4 p-4 lg:grid-cols-[1fr_360px] xl:grid-cols-[60%_40%]">
+    <section class="space-y-4">
+        <div class="grid gap-4 lg:grid-cols-[1fr_360px] xl:grid-cols-[60%_40%]">
             <!-- Left Side: Catalog & Category Filter (60% width) -->
             <div class="space-y-4 min-w-0">
                 <div class="list-panel p-3">
@@ -24,7 +11,13 @@
                             <div class="text-sm font-semibold">Katalog Produk Voucher</div>
                             <div class="text-[11px] text-[color:var(--muted)]">Pilih kategori voucher di bawah untuk memfilter kolom produk.</div>
                         </div>
-                        <input id="voucherSearch" class="field max-w-xs text-xs py-1.5" type="text" placeholder="Cari nama / kode / varian / SN...">
+                        <div class="flex items-center gap-2">
+                            <div class="rounded-lg border border-[#d8e1ec] bg-white px-2.5 py-1 text-xs whitespace-nowrap">
+                                <span class="text-[color:var(--muted)]">Hari Ini:</span>
+                                <strong id="todayVoucherTotal" class="ml-1 text-[color:var(--accent)]">Rp 0</strong>
+                            </div>
+                            <input id="voucherSearch" class="field max-w-xs text-xs py-1.5" type="text" placeholder="Cari nama / kode / varian / SN...">
+                        </div>
                     </div>
 
                     <!-- Category Pills / Selector -->
@@ -47,88 +40,88 @@
             <!-- Right Side: Selling Form & Recent Transactions (Maksimum 40% width) -->
             <div class="space-y-4 max-w-full">
                 <form id="voucherForm" class="list-panel p-3">
-                    <div class="mb-3 flex items-center justify-between">
+                    <div class="mb-2.5 flex items-center justify-between">
                         <div class="text-sm font-semibold">Form Penjualan Voucher</div>
                         <span id="selectedProductBadge" class="badge badge-info hidden"></span>
                     </div>
 
-                    <div class="space-y-3">
+                    <div class="space-y-2.5">
                         <div>
                             <label class="mb-1 block font-medium">Produk Voucher</label>
                             <input type="hidden" id="voucher_product_id">
-                            <input class="field bg-[#f8fafc]" type="text" id="voucher_product_text" placeholder="Pilih produk voucher dari katalog di sebelah kiri" readonly required>
+                            <input class="field bg-[#f8fafc] py-1.5" type="text" id="voucher_product_text" placeholder="Pilih produk voucher dari katalog di sebelah kiri" readonly required>
                         </div>
 
                         <!-- Serial Number Picker -->
-                        <div class="rounded-xl border border-[#d8e1ec] bg-[#f8fafc] p-3 space-y-2.5">
+                        <div class="rounded-xl border border-[#d8e1ec] bg-[#f8fafc] p-2.5 space-y-2">
                             <div class="flex items-center justify-between">
-                                <label class="block text-sm font-semibold">Pilih Serial Number (SN)</label>
+                                <label class="block font-medium text-xs">Pilih Serial Number (SN)</label>
                                 <span id="serialCountBadge" class="text-[11px] text-[color:var(--muted)]">Pilih produk dahulu</span>
                             </div>
 
                             <div>
-                                <select class="select" id="voucher_serial_select">
+                                <select class="select py-1 text-xs" id="voucher_serial_select">
                                     <option value="">-- Pilih Serial Number dari Stok --</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label class="mb-1 block text-xs text-[color:var(--muted)]">Nomor Seri / SN yang akan dijual (bisa diedit / di-scan barcode):</label>
-                                <input class="field" type="text" id="serial_number" placeholder="Contoh: 1234567890 (Bisa dikosongkan jika tanpa SN)">
+                                <input class="field py-1 text-xs font-mono" type="text" id="serial_number" placeholder="SN yang akan dijual (scan/ketik/opsional)">
                             </div>
                         </div>
 
-                        <div>
-                            <label class="mb-1 block font-medium">Nomor Tujuan / HP Pelanggan</label>
-                            <input class="field" type="text" id="target_number" placeholder="08xxxxxxxxxx (Opsional jika voucher fisik)">
-                        </div>
-
-                        <div class="grid gap-3 md:grid-cols-3">
+                        <div class="grid gap-2 grid-cols-2">
+                            <div>
+                                <label class="mb-1 block font-medium">Nomor HP / Tujuan</label>
+                                <input class="field py-1.5" type="text" id="target_number" placeholder="08xxxxxxxxxx (Opsional)">
+                            </div>
                             <div>
                                 <label class="mb-1 block font-medium">Nama Pelanggan</label>
-                                <input class="field" type="text" id="voucher_customer_name" placeholder="Opsional">
+                                <input class="field py-1.5" type="text" id="voucher_customer_name" placeholder="Umum / Opsional">
                             </div>
+                        </div>
+
+                        <div class="grid gap-2 grid-cols-3">
                             <div>
                                 <label class="mb-1 block font-medium">Shift</label>
-                                <select class="select" id="voucher_shift">
+                                <select class="select py-1.5" id="voucher_shift">
                                     <option value="pagi">Pagi</option>
                                     <option value="sore">Sore</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="mb-1 block font-medium">Sumber / Dompet</label>
-                                <select class="select" id="wallet_id"></select>
+                                <label class="mb-1 block font-medium">Sumber Dompet</label>
+                                <select class="select py-1.5" id="wallet_id"></select>
                             </div>
-                        </div>
-
-                        <div class="grid gap-3 md:grid-cols-2">
                             <div>
-                                <label class="mb-1 block font-medium">Metode Pembayaran</label>
-                                <select class="select" id="voucher_payment_method">
+                                <label class="mb-1 block font-medium">Metode</label>
+                                <select class="select py-1.5" id="voucher_payment_method">
                                     <option value="cash">Tunai</option>
                                     <option value="qris">QRIS</option>
                                     <option value="transfer">Transfer</option>
                                     <option value="debit">Debit</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="grid gap-2 grid-cols-2">
                             <div>
                                 <label class="mb-1 block font-medium">Uang Diterima</label>
-                                <input class="field" type="text" inputmode="numeric" data-number-mask id="voucher_cash_paid" value="0" required>
+                                <input class="field py-1.5" type="text" inputmode="numeric" data-number-mask id="voucher_cash_paid" value="0" required>
+                            </div>
+                            <div>
+                                <label class="mb-1 block font-medium">Catatan</label>
+                                <input class="field py-1.5" type="text" id="voucher_notes" placeholder="Opsional">
                             </div>
                         </div>
 
-                        <div>
-                            <label class="mb-1 block font-medium">Catatan</label>
-                            <input class="field" type="text" id="voucher_notes" placeholder="Opsional">
-                        </div>
-
-                        <div class="pos-summary">
-                            <div class="pos-summary-row">
+                        <div class="pos-summary my-1 py-1.5">
+                            <div class="pos-summary-row text-xs">
                                 <span class="text-[color:var(--muted)]">Harga Jual</span>
                                 <strong id="voucherPriceText">Rp 0</strong>
                             </div>
-                            <div class="pos-summary-row">
-                                <span class="text-[color:var(--muted)]">Harga Modal / Potong Saldo</span>
+                            <div class="pos-summary-row text-xs">
+                                <span class="text-[color:var(--muted)]">Modal / Potong Saldo</span>
                                 <strong id="voucherCostText">Rp 0</strong>
                             </div>
                             <div class="pos-summary-row pos-summary-total">
@@ -137,7 +130,7 @@
                             </div>
                         </div>
 
-                        <button class="btn btn-primary w-full py-2.5" type="submit" id="btnSubmitVoucher">
+                        <button class="btn btn-primary w-full py-2 min-h-[38px] text-sm font-semibold" type="submit" id="btnSubmitVoucher">
                             <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10"/><path d="M4 4h16v16H4z"/></svg></span>
                             <span>Simpan Penjualan Voucher</span>
                         </button>
@@ -146,7 +139,7 @@
 
                 <div class="list-panel p-3">
                     <div class="mb-2 text-sm font-semibold">Transaksi Voucher Terakhir</div>
-                    <div id="recentVoucherSalesList" class="space-y-2 max-h-[260px] overflow-y-auto"></div>
+                    <div id="recentVoucherSalesList" class="space-y-2 max-h-[220px] overflow-y-auto"></div>
                 </div>
             </div>
         </div>

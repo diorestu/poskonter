@@ -23,11 +23,11 @@
             <form method="POST" action="{{ route('login.authenticate') }}" class="space-y-4" id="loginForm">
                 @csrf
                 <div>
-                    <label class="mb-1 block font-medium text-xs">Email</label>
+                    <label class="mb-1 block font-medium">Email</label>
                     <input class="field" type="email" id="email" name="email" value="{{ old('email') }}" placeholder="admin@zeni.local" required autofocus>
                 </div>
                 <div>
-                    <label class="mb-1 block font-medium text-xs">Password</label>
+                    <label class="mb-1 block font-medium">Password</label>
                     <div class="relative flex items-center">
                         <input class="field pr-10" type="password" id="password" name="password" placeholder="••••••••" required>
                         <button type="button" class="absolute right-3 flex items-center justify-center text-[color:var(--muted)] hover:text-[color:var(--text)] transition cursor-pointer" id="togglePassword" title="Lihat / Sembunyikan Password">
