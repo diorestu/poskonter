@@ -45,6 +45,7 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware('role:admin')->group(function (): void {
         Route::get('/report', [PosController::class, 'report'])->name('report.index');
+        Route::get('/report/pdf', [PosController::class, 'exportPdf'])->name('report.pdf');
         Route::get('/master-data', [PosController::class, 'masterData'])->name('master.index');
         Route::get('/master-data/produk-fisik', [PosController::class, 'masterPhysical'])->name('master.physical.index');
         Route::get('/master-data/produk-elektrik', [PosController::class, 'masterElectric'])->name('master.electric.index');

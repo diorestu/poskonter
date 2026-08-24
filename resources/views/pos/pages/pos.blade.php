@@ -1,47 +1,47 @@
 @extends('layouts.app')
 
 @section('content')
-    <section class="pos-shell min-h-[calc(100vh-105px)] flex flex-col overflow-x-hidden max-w-full">
-        <div class="px-4 py-2.5 border-b border-[#e2e8f0] flex flex-wrap items-center justify-between gap-2 shrink-0">
-            <div class="inline-flex rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-0.5 gap-1">
-                <button type="button" class="pos-main-tab menu-link menu-link-active text-xs font-semibold py-1 px-3" data-pos-tab="hp">HP dan Aksesoris</button>
-                <button type="button" class="pos-main-tab menu-link text-xs font-semibold py-1 px-3" data-pos-tab="voucher">Voucher</button>
-                <button type="button" class="pos-main-tab menu-link text-xs font-semibold py-1 px-3" data-pos-tab="pulsa">Pulsa Elektrik</button>
+    <section class="pos-shell min-h-[calc(100vh-105px)] flex flex-col overflow-x-hidden max-w-full mb-4">
+        <div class="px-5 py-3 border-b border-[#e2e8f0] flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div class="inline-flex rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-1 gap-1.5">
+                <button type="button" class="pos-main-tab menu-link menu-link-active text-xs font-semibold py-1.5 px-3.5" data-pos-tab="hp">HP dan Aksesoris</button>
+                <button type="button" class="pos-main-tab menu-link text-xs font-semibold py-1.5 px-3.5" data-pos-tab="voucher">Voucher</button>
+                <button type="button" class="pos-main-tab menu-link text-xs font-semibold py-1.5 px-3.5" data-pos-tab="pulsa">Pulsa Elektrik</button>
             </div>
             <div class="text-[11px] text-[color:var(--muted)] font-medium">Kasir Cepat POS</div>
         </div>
 
-        <div class="pos-main-panel flex-1 overflow-x-hidden p-3 max-w-full" data-pos-panel="hp">
-        <div class="grid gap-3 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_420px] max-w-full min-w-0 items-stretch">
+        <div class="pos-main-panel flex-1 overflow-x-hidden p-4 sm:p-5 max-w-full" data-pos-panel="hp">
+        <div class="grid gap-4 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_420px] max-w-full min-w-0 items-stretch">
             <!-- Left Column: Product Grid (Adapts to viewport, scrolls vertically) -->
-            <div class="pos-product-panel p-3 flex flex-col min-w-0 overflow-x-hidden">
-                <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 shrink-0">
+            <div class="pos-product-panel p-4 flex flex-col min-w-0 overflow-x-hidden">
+                <div class="flex flex-wrap items-center justify-between gap-3 pb-3 shrink-0">
                     <div id="categoryTabs" class="category-tabs flex-1 min-w-0"></div>
-                    <div class="w-full sm:w-52">
-                        <input type="text" id="posProductSearch" class="field text-xs py-1 px-2" placeholder="Cari nama / kode...">
+                    <div class="w-full sm:w-56">
+                        <input type="text" id="posProductSearch" class="field py-1.5 px-2.5" placeholder="Cari nama / kode...">
                     </div>
                 </div>
-                <div id="productPicker" class="product-grid flex-1 overflow-y-auto overflow-x-hidden pr-1"></div>
+                <div id="productPicker" class="product-grid flex-1 overflow-y-auto overflow-x-hidden pr-1.5 pb-2"></div>
             </div>
 
             <!-- Right Column: Checkout Sidebar (Scrolls vertically only) -->
             <div class="min-w-0 overflow-x-hidden">
-                <form id="saleForm" class="pos-product-panel p-3.5 flex flex-col h-full justify-between overflow-hidden">
+                <form id="saleForm" class="pos-product-panel p-4 sm:p-4.5 flex flex-col h-full justify-between overflow-hidden">
                     <div class="flex flex-col flex-1 overflow-hidden min-h-0">
-                        <div class="mb-2.5 grid gap-2 grid-cols-3 shrink-0">
+                        <div class="mb-3 grid gap-2.5 grid-cols-3 shrink-0">
                             <div>
-                                <label class="mb-0.5 block font-medium text-[color:var(--muted)]">Pelanggan</label>
+                                <label class="mb-1 block font-medium text-[color:var(--muted)]">Pelanggan</label>
                                 <input class="field py-1 px-2" type="text" id="customer_name" placeholder="Umum">
                             </div>
                             <div>
-                                <label class="mb-0.5 block font-medium text-[color:var(--muted)]">Shift</label>
+                                <label class="mb-1 block font-medium text-[color:var(--muted)]">Shift</label>
                                 <select class="select py-1 px-2" id="shift">
                                     <option value="pagi">Pagi</option>
                                     <option value="sore">Sore</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="mb-0.5 block font-medium text-[color:var(--muted)]">Metode</label>
+                                <label class="mb-1 block font-medium text-[color:var(--muted)]">Metode</label>
                                 <select class="select py-1 px-2" id="payment_method">
                                     <option value="cash">Tunai</option>
                                     <option value="qris">QRIS</option>
@@ -51,7 +51,7 @@
                             </div>
                         </div>
 
-                        <div class="table-wrap flex-1 overflow-y-auto min-h-[100px] mb-2">
+                        <div class="table-wrap flex-1 overflow-y-auto min-h-[110px] mb-3">
                             <table class="table-grid min-w-full text-xs">
                                 <thead class="text-left sticky top-0 z-10">
                                     <tr>
@@ -71,10 +71,10 @@
                         </div>
                     </div>
 
-                    <div class="shrink-0 pt-1 border-t border-[#f1f5f9]">
+                    <div class="shrink-0 pt-2 border-t border-[#f1f5f9]">
                         <input type="hidden" id="discount" value="0">
-                        <div class="mb-2">
-                            <div class="pos-summary p-2">
+                        <div class="mb-2.5">
+                            <div class="pos-summary p-2.5">
                                 <div class="pos-summary-row text-xs">
                                     <span class="text-[color:var(--muted)]">Item / Qty</span>
                                     <strong id="itemCountText">0 (0)</strong>
@@ -83,7 +83,7 @@
                                     <span class="text-[color:var(--muted)]">Subtotal</span>
                                     <strong id="subtotalText">Rp 0</strong>
                                 </div>
-                                <div class="pos-summary-row pos-summary-total mt-0.5 pt-0.5">
+                                <div class="pos-summary-row pos-summary-total mt-1 pt-1">
                                     <span class="text-[color:var(--muted)] font-semibold text-xs">Total</span>
                                     <strong id="totalText" class="text-sm">Rp 0</strong>
                                 </div>
@@ -91,11 +91,11 @@
                         </div>
 
                         <div class="flex gap-2">
-                            <button class="btn btn-primary flex-1 min-h-[34px] text-xs font-semibold" type="button" id="openPaymentModal">
+                            <button class="btn btn-primary flex-1 min-h-[36px] text-xs font-semibold" type="button" id="openPaymentModal">
                                 <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M3 7h18"/><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M16 15h2"/></svg></span>
                                 <span>Bayar</span>
                             </button>
-                            <button class="btn btn-secondary min-h-[34px] text-xs" type="button" id="clearCart">
+                            <button class="btn btn-secondary min-h-[36px] text-xs" type="button" id="clearCart">
                                 <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
                                 <span>Kosongkan</span>
                             </button>
@@ -106,7 +106,7 @@
         </div>
         </div>
 
-        <div class="pos-main-panel hidden p-4" data-pos-panel="voucher">
+        <div class="pos-main-panel hidden p-4 sm:p-5" data-pos-panel="voucher">
             <iframe
                 class="min-h-[760px] w-full border-0 rounded-xl"
                 src="{{ route('voucher.index', ['embedded' => 1]) }}"
@@ -114,7 +114,7 @@
             ></iframe>
         </div>
 
-        <div class="pos-main-panel hidden p-4" data-pos-panel="pulsa">
+        <div class="pos-main-panel hidden p-4 sm:p-5" data-pos-panel="pulsa">
             <iframe
                 class="min-h-[760px] w-full border-0 rounded-xl"
                 src="{{ route('pulsa.index', ['embedded' => 1]) }}"

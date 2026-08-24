@@ -826,4 +826,28 @@
         background: #dc2626;
         color: #ffffff;
     }
+
+    /* Flatpickr Zeni Theme */
+    .flatpickr-calendar {
+        font-family: var(--font-sans);
+        border-radius: 12px;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
+        border: 1px solid #cbd5e1;
+    }
+    .flatpickr-day.selected,
+    .flatpickr-day.startRange,
+    .flatpickr-day.endRange,
+    .flatpickr-day.selected.inRange,
+    .flatpickr-day.startRange.inRange,
+    .flatpickr-day.endRange.inRange {
+        background: #2563eb !important;
+        border-color: #2563eb !important;
+        color: #ffffff !important;
+    }
+    .flatpickr-day.inRange {
+        background: #e0edff !important;
+        border-color: #e0edff !important;
+        box-shadow: -5px 0 0 #e0edff, 5px 0 0 #e0edff;
+        color: #1d4ed8 !important;
+    }
 }

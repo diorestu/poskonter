@@ -22,10 +22,15 @@ return Application::configure(basePath: dirname(__DIR__))
                 \Illuminate\Support\Facades\Log::warning('Login/CSRF 419 Page Expired Occurred', [
                     'ip' => $request->ip(),
                     'url' => $request->fullUrl(),
+                    'origin' => $request->header('Origin'),
+                    'referer' => $request->header('Referer'),
+                    'app_url' => config('app.url'),
                     'method' => $request->method(),
                     'session_driver' => config('session.driver'),
-                    'has_token' => $request->has('_token'),
-                    'user_agent' => $request->userAgent(),
+                    'session_id' => $request->hasSession() ? $request->session()->getId() : 'no-session',
+                    'session_token' => $request->hasSession() ? $request->session()->token() : 'none',
+                    'request_token' => $request->input('_token') ?: $request->header('X-CSRF-TOKEN'),
+                    'is_secure' => $request->secure(),
                 ]);
 
                 if ($request->expectsJson()) {

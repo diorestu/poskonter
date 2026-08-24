@@ -1,16 +1,37 @@
 @extends('layouts.app')
 
 @section('content')
-    <section class="pane">
-        <div class="toolbar flex items-center justify-between px-4 py-3">
-            <div>
-                <h1 class="font-semibold">Report</h1>
-                <p class="text-[color:var(--muted)]">Ringkasan penjualan harian dan produk yang butuh perhatian.</p>
+    <section class="space-y-4">
+        <!-- Date Filter & PDF Download Card -->
+        <div class="list-panel p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h1 class="font-semibold text-lg">Laporan & Rekapitulasi Shift</h1>
+                    <p class="text-[color:var(--muted)] text-xs">Pilih rentang tanggal untuk melihat statistik dan mengunduh laporan PDF per kategori & shift.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative flex items-center">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[#64748b]">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+                        </div>
+                        <input type="text" id="reportDateRange" class="field py-1.5 pl-8 pr-3 text-xs w-64 bg-white font-medium cursor-pointer" placeholder="Pilih Rentang Tanggal..." readonly>
+                    </div>
+                    <button type="button" class="btn btn-secondary text-xs py-1.5" id="btnFilterToday">Hari Ini</button>
+                    <button type="button" class="btn btn-secondary text-xs py-1.5" id="btnFilterThisMonth">Bulan Ini</button>
+                    <a href="#" target="_blank" class="btn btn-secondary text-xs py-1.5" id="btnPreviewPdf">
+                        <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                        <span>Lihat PDF</span>
+                    </a>
+                    <a href="#" class="btn btn-primary text-xs py-1.5 font-medium" id="btnDownloadPdf">
+                        <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></span>
+                        <span>Unduh PDF</span>
+                    </a>
+                </div>
             </div>
         </div>
 
-        <div class="grid gap-4 p-4">
-            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4" id="summaryCards"></div>
+        <div class="grid gap-4">
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-5" id="summaryCards"></div>
 
             <div class="grid gap-4 xl:grid-cols-2">
                 <div class="list-panel p-3">
@@ -142,6 +163,60 @@
                 lowStockTable.syncSortUi('#lowStockMainTable thead');
                 lowStockTable.renderFooter('#lowStockPagination', meta);
             });
+
+            let startDate = new Date();
+            startDate.setDate(1);
+            let startDateStr = startDate.toISOString().split('T')[0];
+            let endDateStr = new Date().toISOString().split('T')[0];
+
+            function updatePdfLinks(start, end) {
+                const baseUrl = @json(route('report.pdf'));
+                $('#btnDownloadPdf').attr('href', `${baseUrl}?start_date=${start}&end_date=${end}&download=1`);
+                $('#btnPreviewPdf').attr('href', `${baseUrl}?start_date=${start}&end_date=${end}&view=preview`);
+            }
+
+            const fp = window.flatpickr ? window.flatpickr('#reportDateRange', {
+                mode: 'range',
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'd M Y',
+                defaultDate: [startDateStr, endDateStr],
+                locale: window.flatpickrIndonesian || 'default',
+                onChange: function (selectedDates, dateStr, instance) {
+                    if (selectedDates.length === 2) {
+                        const s = instance.formatDate(selectedDates[0], 'Y-m-d');
+                        const e = instance.formatDate(selectedDates[1], 'Y-m-d');
+                        startDateStr = s;
+                        endDateStr = e;
+                        updatePdfLinks(s, e);
+                    } else if (selectedDates.length === 1) {
+                        const s = instance.formatDate(selectedDates[0], 'Y-m-d');
+                        startDateStr = s;
+                        endDateStr = s;
+                        updatePdfLinks(s, s);
+                    }
+                }
+            }) : null;
+
+            $('#btnFilterToday').on('click', function () {
+                const today = new Date().toISOString().split('T')[0];
+                startDateStr = today;
+                endDateStr = today;
+                if (fp) fp.setDate([today, today], true);
+                updatePdfLinks(today, today);
+            });
+
+            $('#btnFilterThisMonth').on('click', function () {
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                const today = now.toISOString().split('T')[0];
+                startDateStr = firstDay;
+                endDateStr = today;
+                if (fp) fp.setDate([firstDay, today], true);
+                updatePdfLinks(firstDay, today);
+            });
+
+            updatePdfLinks(startDateStr, endDateStr);
 
             $.get(window.posConfig.dashboardUrl)
                 .done((response) => {

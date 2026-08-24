@@ -10,6 +10,8 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\StockMovement;
 use App\Models\Wallet;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,6 +42,167 @@ class PosController extends Controller
     public function report(): View
     {
         return view('pos.pages.report');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->toDateString());
+        $endDate = $request->query('end_date', Carbon::today()->toDateString());
+
+        $sales = Sale::query()
+            ->with(['items.product'])
+            ->whereDate('sale_date', '>=', $startDate)
+            ->whereDate('sale_date', '<=', $endDate)
+            ->orderBy('sale_date', 'desc')
+            ->get();
+        $totalPosSales = (float) $sales->sum('total');
+
+        $pulsaSales = PulsaSale::query()
+            ->with(['product'])
+            ->where('status', 'success')
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->latest()
+            ->get();
+        $totalPulsaSales = (float) $pulsaSales->sum('selling_price');
+        $totalPulsaCost = (float) $pulsaSales->sum('cost_price');
+
+        $expenses = Expense::query()
+            ->whereDate('expense_date', '>=', $startDate)
+            ->whereDate('expense_date', '<=', $endDate)
+            ->orderBy('expense_date', 'desc')
+            ->get();
+        $totalExpenses = (float) $expenses->sum('amount');
+
+        $totalRevenue = $totalPosSales + $totalPulsaSales;
+
+        // Estimated Cost of Goods Sold for POS items
+        $posCost = 0;
+        foreach ($sales as $sale) {
+            foreach ($sale->items as $item) {
+                $posCost += (float) ($item->cost_price * $item->quantity);
+            }
+        }
+
+        $grossProfit = ($totalPosSales - $posCost) + ($totalPulsaSales - $totalPulsaCost);
+        $netProfit = $grossProfit - $totalExpenses;
+
+        $lowStockProducts = Product::query()
+            ->where('product_type', 'regular')
+            ->whereColumn('stock', '<=', 'minimum_stock')
+            ->orderBy('stock', 'asc')
+            ->get();
+
+        // Process Category & Shift Sales Aggregation (2 Kolom: Shift Pagi vs Shift Sore)
+        $categoriesMap = [];
+
+        // 1. Process Physical Sales Items
+        foreach ($sales as $sale) {
+            $shift = strtolower($sale->shift ?: 'pagi');
+            if (! in_array($shift, ['pagi', 'sore'])) {
+                $shift = 'pagi';
+            }
+
+            foreach ($sale->items as $item) {
+                $categoryName = trim($item->product?->category ?: 'Aksesoris & Lainnya');
+                if (! isset($categoriesMap[$categoryName])) {
+                    $categoriesMap[$categoryName] = [
+                        'pagi' => ['items' => [], 'total_qty' => 0, 'total_amount' => 0],
+                        'sore' => ['items' => [], 'total_qty' => 0, 'total_amount' => 0],
+                    ];
+                }
+
+                $productKey = $item->product_id ? 'prod_'.$item->product_id : 'name_'.md5($item->product_name);
+                if (! isset($categoriesMap[$categoryName][$shift]['items'][$productKey])) {
+                    $categoriesMap[$categoryName][$shift]['items'][$productKey] = [
+                        'name' => $item->product_name ?: ($item->product?->name ?? 'Item'),
+                        'qty' => 0,
+                        'price' => (float) $item->unit_price,
+                        'total' => 0,
+                    ];
+                }
+
+                $categoriesMap[$categoryName][$shift]['items'][$productKey]['qty'] += (int) $item->quantity;
+                $categoriesMap[$categoryName][$shift]['items'][$productKey]['total'] += (float) $item->subtotal;
+                $categoriesMap[$categoryName][$shift]['total_qty'] += (int) $item->quantity;
+                $categoriesMap[$categoryName][$shift]['total_amount'] += (float) $item->subtotal;
+            }
+        }
+
+        // 2. Process Pulsa & Voucher Sales
+        foreach ($pulsaSales as $pSale) {
+            $shift = strtolower($pSale->shift ?: 'pagi');
+            if (! in_array($shift, ['pagi', 'sore'])) {
+                $shift = 'pagi';
+            }
+
+            $categoryName = trim($pSale->product?->category ?: ($pSale->product?->product_type === 'pulsa' ? 'Pulsa Elektrik' : 'Voucher'));
+            if (! isset($categoriesMap[$categoryName])) {
+                $categoriesMap[$categoryName] = [
+                    'pagi' => ['items' => [], 'total_qty' => 0, 'total_amount' => 0],
+                    'sore' => ['items' => [], 'total_qty' => 0, 'total_amount' => 0],
+                ];
+            }
+
+            $productKey = 'pulsa_'.$pSale->product_id.'_'.md5($pSale->product?->name ?? 'p');
+            if (! isset($categoriesMap[$categoryName][$shift]['items'][$productKey])) {
+                $categoriesMap[$categoryName][$shift]['items'][$productKey] = [
+                    'name' => $pSale->product?->name ?: 'Pulsa/Voucher',
+                    'qty' => 0,
+                    'price' => (float) $pSale->selling_price,
+                    'total' => 0,
+                ];
+            }
+
+            $categoriesMap[$categoryName][$shift]['items'][$productKey]['qty'] += 1;
+            $categoriesMap[$categoryName][$shift]['items'][$productKey]['total'] += (float) $pSale->selling_price;
+            $categoriesMap[$categoryName][$shift]['total_qty'] += 1;
+            $categoriesMap[$categoryName][$shift]['total_amount'] += (float) $pSale->selling_price;
+        }
+
+        // Shift Summary (Pagi vs Sore)
+        $shiftSummary = [
+            'pagi' => [
+                'pos_sales' => (float) $sales->where('shift', 'pagi')->sum('total'),
+                'pulsa_sales' => (float) $pulsaSales->where('shift', 'pagi')->sum('selling_price'),
+                'cash' => (float) $sales->where('shift', 'pagi')->where('payment_method', 'cash')->sum('total') + (float) $pulsaSales->where('shift', 'pagi')->where('payment_method', 'cash')->sum('selling_price'),
+                'non_cash' => (float) $sales->where('shift', 'pagi')->where('payment_method', '!=', 'cash')->sum('total') + (float) $pulsaSales->where('shift', 'pagi')->where('payment_method', '!=', 'cash')->sum('selling_price'),
+                'transactions' => $sales->where('shift', 'pagi')->count() + $pulsaSales->where('shift', 'pagi')->count(),
+            ],
+            'sore' => [
+                'pos_sales' => (float) $sales->where('shift', 'sore')->sum('total'),
+                'pulsa_sales' => (float) $pulsaSales->where('shift', 'sore')->sum('selling_price'),
+                'cash' => (float) $sales->where('shift', 'sore')->where('payment_method', 'cash')->sum('total') + (float) $pulsaSales->where('shift', 'sore')->where('payment_method', 'cash')->sum('selling_price'),
+                'non_cash' => (float) $sales->where('shift', 'sore')->where('payment_method', '!=', 'cash')->sum('total') + (float) $pulsaSales->where('shift', 'sore')->where('payment_method', '!=', 'cash')->sum('selling_price'),
+                'transactions' => $sales->where('shift', 'sore')->count() + $pulsaSales->where('shift', 'sore')->count(),
+            ],
+        ];
+        $shiftSummary['pagi']['total'] = $shiftSummary['pagi']['pos_sales'] + $shiftSummary['pagi']['pulsa_sales'];
+        $shiftSummary['sore']['total'] = $shiftSummary['sore']['pos_sales'] + $shiftSummary['sore']['pulsa_sales'];
+
+        $pdf = Pdf::loadView('pos.reports.pdf', compact(
+            'startDate',
+            'endDate',
+            'categoriesMap',
+            'shiftSummary',
+            'sales',
+            'pulsaSales',
+            'expenses',
+            'lowStockProducts',
+            'totalPosSales',
+            'totalPulsaSales',
+            'totalRevenue',
+            'totalExpenses',
+            'netProfit'
+        ))->setPaper('a4', 'portrait');
+
+        $fileName = 'Laporan-ZeniPOS-' . Carbon::parse($startDate)->format('Ymd') . '-' . Carbon::parse($endDate)->format('Ymd') . '.pdf';
+
+        if ($request->query('view') === 'preview') {
+            return $pdf->stream($fileName);
+        }
+
+        return $pdf->download($fileName);
     }
 
     public function masterData(): RedirectResponse
