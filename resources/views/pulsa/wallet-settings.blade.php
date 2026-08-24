@@ -52,24 +52,24 @@
             <form id="walletManageForm" class="modal-body space-y-3.5">
                 <input type="hidden" id="wallet_manage_id">
                 <div>
-                    <label class="mb-1 block font-medium text-xs">Nama Dompet</label>
-                    <input class="field text-xs" type="text" id="wallet_manage_name" placeholder="Contoh: Server Digipos / Otomax" required>
+                    <label class="mb-1 block font-medium">Nama Dompet</label>
+                    <input class="field" type="text" id="wallet_manage_name" placeholder="Contoh: Server Digipos / Otomax" required>
                 </div>
                 <div id="walletInitialBalanceWrap">
-                    <label class="mb-1 block font-medium text-xs">Saldo Awal (Rp)</label>
-                    <input class="field text-xs" type="text" inputmode="numeric" data-number-mask id="wallet_manage_balance" value="0">
+                    <label class="mb-1 block font-medium">Saldo Awal (Rp)</label>
+                    <input class="field" type="text" inputmode="numeric" data-number-mask id="wallet_manage_balance" value="0">
                 </div>
                 <div id="walletProvidersWrap">
-                    <label class="mb-1 block font-medium text-xs">Provider yang Terhubung</label>
+                    <label class="mb-1 block font-medium">Provider yang Terhubung</label>
                     <div id="walletProviderOptions" class="space-y-2 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3 max-h-[200px] overflow-y-auto"></div>
                     <div class="mt-1.5 text-[11px] text-[color:var(--muted)]">Produk pada provider terpilih akan otomatis memakai saldo dompet ini.</div>
                 </div>
                 <div class="mt-4 flex gap-2 pt-2 border-t border-[#f1f5f9]">
-                    <button class="btn btn-primary flex-1 text-xs" type="submit" id="walletManageSubmit">
+                    <button class="btn btn-primary flex-1" type="submit" id="walletManageSubmit">
                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10"/><path d="M4 4h16v16H4z"/></svg></span>
                         <span id="walletManageSubmitText">Simpan Dompet</span>
                     </button>
-                    <button class="btn btn-secondary text-xs close-wallet-modal" type="button">
+                    <button class="btn btn-secondary close-wallet-modal" type="button">
                         <span>Batal</span>
                     </button>
                 </div>
@@ -91,8 +91,8 @@
             </div>
             <form id="modalTopupForm" class="modal-body space-y-3.5">
                 <div>
-                    <label class="mb-1 block font-medium text-xs">Pilih Dompet</label>
-                    <select class="select text-xs" id="modal_wallet_id" required></select>
+                    <label class="mb-1 block font-medium">Pilih Dompet</label>
+                    <select class="select" id="modal_wallet_id" required></select>
                 </div>
 
                 <div id="modalWalletInfo" class="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2.5 flex items-center justify-between text-xs">
@@ -101,8 +101,8 @@
                 </div>
 
                 <div>
-                    <label class="mb-1 block font-medium text-xs">Nominal Top Up (Rp)</label>
-                    <input class="field text-xs py-2 font-mono font-semibold text-sm" type="text" inputmode="numeric" data-number-mask id="modal_wallet_amount" value="0" required>
+                    <label class="mb-1 block font-medium">Nominal Top Up (Rp)</label>
+                    <input class="field font-mono font-semibold" type="text" inputmode="numeric" data-number-mask id="modal_wallet_amount" value="0" required>
                 </div>
 
                 <!-- Quick Nominal Buttons in 1 Row -->
@@ -118,11 +118,11 @@
                 </div>
 
                 <div class="mt-4 flex gap-2 pt-2 border-t border-[#f1f5f9]">
-                    <button class="btn btn-primary flex-1 text-xs" type="submit">
+                    <button class="btn btn-primary flex-1" type="submit">
                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
                         <span>Konfirmasi Tambah Saldo</span>
                     </button>
-                    <button class="btn btn-secondary text-xs close-topup-modal" type="button">
+                    <button class="btn btn-secondary close-topup-modal" type="button">
                         <span>Batal</span>
                     </button>
                 </div>
@@ -238,12 +238,12 @@
                     <tr>
                         <td>
                             <div class="font-medium text-xs">${wallet.name}</div>
-                            <div class="text-[10px] text-[color:var(--muted)]">${(wallet.child_providers || []).length} provider terkait</div>
+                            <div class="text-[11px] text-[color:var(--muted)]">${(wallet.child_providers || []).length} provider terkait</div>
                         </td>
                         <td class="font-semibold text-xs font-mono text-blue-600">${money(wallet.balance)}</td>
                         <td>
                             ${(wallet.child_providers || []).length
-                                ? wallet.child_providers.map((provider) => `<span class="badge badge-info text-[10px] mr-1 mb-1">${provider.name}</span>`).join('')
+                                ? wallet.child_providers.map((provider) => `<span class="badge badge-info text-[11px] mr-1 mb-1">${provider.name}</span>`).join('')
                                 : '<span class="text-[11px] text-[color:var(--muted)]">Belum diikat ke provider</span>'}
                         </td>
                         <td class="text-right whitespace-nowrap">

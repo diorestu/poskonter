@@ -30,19 +30,19 @@
                     <div class="flex flex-col flex-1 overflow-hidden min-h-0">
                         <div class="mb-2.5 grid gap-2 grid-cols-3 shrink-0">
                             <div>
-                                <label class="mb-0.5 block font-medium text-[10px] text-[color:var(--muted)]">Pelanggan</label>
-                                <input class="field text-xs py-1 px-2" type="text" id="customer_name" placeholder="Umum">
+                                <label class="mb-0.5 block font-medium text-xs text-[color:var(--muted)]">Pelanggan</label>
+                                <input class="field py-1 px-2 text-xs" type="text" id="customer_name" placeholder="Umum">
                             </div>
                             <div>
-                                <label class="mb-0.5 block font-medium text-[10px] text-[color:var(--muted)]">Shift</label>
-                                <select class="select text-xs py-1 px-2" id="shift">
+                                <label class="mb-0.5 block font-medium text-xs text-[color:var(--muted)]">Shift</label>
+                                <select class="select py-1 px-2 text-xs" id="shift">
                                     <option value="pagi">Pagi</option>
                                     <option value="sore">Sore</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="mb-0.5 block font-medium text-[10px] text-[color:var(--muted)]">Metode</label>
-                                <select class="select text-xs py-1 px-2" id="payment_method">
+                                <label class="mb-0.5 block font-medium text-xs text-[color:var(--muted)]">Metode</label>
+                                <select class="select py-1 px-2 text-xs" id="payment_method">
                                     <option value="cash">Tunai</option>
                                     <option value="qris">QRIS</option>
                                     <option value="transfer">Transfer</option>
@@ -244,7 +244,7 @@
                                     ${saleItems.map((si) => `
                                         <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
                                             <span>${si.product?.name || 'Produk'} ${si.product?.variant ? `(${si.product.variant})` : ''} <span class="text-[color:var(--foreground)] font-medium">x${si.quantity}</span></span>
-                                            ${si.serial_number ? `<span class="badge badge-ok font-mono text-[10px]">IMEI: ${si.serial_number}</span>` : ''}
+                                            ${si.serial_number ? `<span class="badge badge-ok font-mono text-[11px]">IMEI: ${si.serial_number}</span>` : ''}
                                         </div>
                                     `).join('')}
                                 </div>
@@ -301,15 +301,15 @@
                     return `
                         <button type="button" class="product-card add-to-cart ${Number(product.stock) < 1 ? 'product-card-disabled' : ''}" data-id="${product.id}" ${Number(product.stock) < 1 ? 'disabled' : ''}>
                             <div>
-                                <div class="font-semibold text-[11px] leading-tight text-left text-[color:var(--text)] line-clamp-1">${product.name}</div>
-                                <div class="mt-0.5 flex items-center justify-between text-[10px] text-[color:var(--muted)]">
+                                <div class="font-semibold text-xs leading-tight text-left text-[color:var(--text)] line-clamp-1">${product.name}</div>
+                                <div class="mt-0.5 flex items-center justify-between text-[11px] text-[color:var(--muted)]">
                                     <span class="truncate max-w-[85px]">${product.variant || product.unit || product.code}</span>
-                                    ${serialCount > 0 ? `<span class="badge badge-ok font-mono text-[9px] py-0 px-1">${serialCount} IMEI</span>` : ''}
+                                    ${serialCount > 0 ? `<span class="badge badge-ok font-mono text-[11px] py-0 px-1">${serialCount} IMEI</span>` : ''}
                                 </div>
                             </div>
                             <div class="mt-1.5 pt-1 border-t border-[#f1f5f9] flex items-end justify-between gap-1">
-                                <span class="product-card-price text-[11px] font-bold">${money(product.price)}</span>
-                                <span class="product-card-stock text-[9px]">Stok ${product.stock}</span>
+                                <span class="product-card-price text-xs font-bold">${money(product.price)}</span>
+                                <span class="product-card-stock text-[11px]">Stok ${product.stock}</span>
                             </div>
                         </button>
                     `;

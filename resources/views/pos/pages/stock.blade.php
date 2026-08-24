@@ -10,16 +10,16 @@
                     </div>
                     <div class="space-y-3">
                         <div class="search-select">
-                            <label class="mb-1 block font-medium text-xs">Produk</label>
-                            <input class="field text-xs" type="text" id="stock_product_search" placeholder="Cari nama atau kode produk" autocomplete="off">
+                            <label class="mb-1 block font-medium">Produk</label>
+                            <input class="field" type="text" id="stock_product_search" placeholder="Cari nama atau kode produk" autocomplete="off">
                             <input type="hidden" id="stock_product_id">
                             <div id="stockProductList" class="search-select-list hidden"></div>
                         </div>
 
                         <div>
                             <div class="mb-2 flex items-center justify-between gap-2">
-                                <label class="block font-medium text-xs">Detail Item Masuk</label>
-                                <button class="btn btn-secondary text-xs py-1 px-2.5 min-h-[30px]" type="button" id="addStockRow">
+                                <label class="block font-medium">Detail Item Masuk</label>
+                                <button class="btn btn-secondary py-1 px-2.5 min-h-[30px]" type="button" id="addStockRow">
                                     <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
                                     <span>Tambah Baris</span>
                                 </button>
@@ -29,11 +29,11 @@
                         </div>
 
                         <div>
-                            <label class="mb-1 block font-medium text-xs">Catatan</label>
-                            <input class="field text-xs" type="text" id="stock_note" placeholder="Contoh: Barang masuk dari supplier">
+                            <label class="mb-1 block font-medium">Catatan</label>
+                            <input class="field" type="text" id="stock_note" placeholder="Contoh: Barang masuk dari supplier">
                         </div>
 
-                        <button class="btn btn-primary w-full text-xs" type="submit">
+                        <button class="btn btn-primary w-full" type="submit">
                             <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/><path d="M4 4h16v16H4z"/></svg></span>
                             <span>Simpan Stok Masuk</span>
                         </button>

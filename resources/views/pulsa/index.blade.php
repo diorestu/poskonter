@@ -1,15 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
-    <section class="pane">
-        <div class="toolbar flex items-center justify-between px-4 py-3">
-            <div>
-                <h1 class="font-semibold">Pulsa Elektrik</h1>
-                <p class="text-[color:var(--muted)]">Penjualan pulsa mengurangi saldo dompet sesuai potong saldo tiap produk.</p>
-            </div>
-        </div>
-
-        <div class="grid gap-4 p-4 xl:grid-cols-[1.05fr_0.95fr]">
+    <section class="space-y-4">
+        <div class="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
             <div class="space-y-4">
                 <div class="list-panel p-3">
                     <div class="mb-3 flex items-center justify-between gap-3">
@@ -211,7 +204,7 @@
                                             ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}" class="mb-3 h-24 w-full rounded-[6px] object-cover border border-[#d7e0eb]">` : ''}
                                             <div class="font-semibold">${product.name}</div>
                                             <div class="mt-1 text-[11px] text-[color:var(--muted)]">${product.variant || provider}</div>
-                                            <div class="mt-2 text-[10px] text-[color:var(--muted)]">
+                                            <div class="mt-2 text-[11px] text-[color:var(--muted)]">
                                                 ${sourceWallets.length ? `Sumber: ${sourceWallets.map((wallet) => wallet.name).join(', ')}` : 'Belum ada sumber dompet'}
                                             </div>
                                         </div>

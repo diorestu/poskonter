@@ -33,7 +33,7 @@
 @layer base {
     html {
         height: 100%;
-        font-size: 13px;
+        font-size: 14px;
         -webkit-font-smoothing: antialiased;
     }
 
@@ -42,15 +42,30 @@
         background-color: var(--app-bg);
         color: var(--text);
         font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.5;
     }
 
-    h1,
-    h2,
-    h3 {
+    h1 {
         font-size: 18px;
         font-weight: 600;
         line-height: 1.3;
-        letter-spacing: -0.01em;
+    }
+
+    h2,
+    h3 {
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    small,
+    .text-xs,
+    .description,
+    .meta-text,
+    .help-text {
+        font-size: 11px;
+        line-height: 1.4;
     }
 }
 
@@ -86,11 +101,11 @@
         border: 1px solid var(--line);
         border-radius: 999px;
         background: #f8fafc;
-        padding: 0.25rem 0.35rem 0.25rem 0.75rem;
+        padding: 0.25rem 0.4rem 0.25rem 0.75rem;
     }
 
     .user-chip-name {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--text);
     }
@@ -100,7 +115,7 @@
         border-radius: 999px;
         background: #e2e8f0;
         padding: 0.1rem 0.45rem;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
         letter-spacing: 0.04em;
         color: #475467;
@@ -116,6 +131,7 @@
         border-radius: 999px;
         background: #ffffff;
         padding: 0.35rem 0.85rem;
+        font-size: 13px;
         color: #64748b;
         font-weight: 500;
         transition: all 140ms ease;
@@ -133,6 +149,7 @@
         border: 1px solid transparent;
         border-radius: 6px;
         padding: 0.45rem 0.85rem;
+        font-size: 13px;
         color: #475467;
         font-weight: 500;
         transition: all 140ms ease;
@@ -238,7 +255,8 @@
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #ffffff;
-        padding: 0.55rem 0.75rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 13px;
         color: var(--text);
         outline: none;
         box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
@@ -262,13 +280,13 @@
         align-items: center;
         justify-content: center;
         gap: 0.45rem;
-        min-height: 36px;
+        min-height: 34px;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         background: #ffffff;
-        padding: 0.45rem 1rem;
+        padding: 0.4rem 0.95rem;
         font-weight: 500;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--text);
         box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
         transition: all 140ms ease;
@@ -335,7 +353,7 @@
         align-items: center;
         border: 1px solid transparent;
         border-radius: 9999px;
-        padding: 0.2rem 0.6rem;
+        padding: 0.15rem 0.55rem;
         font-size: 11px;
         font-weight: 600;
         letter-spacing: 0.02em;
@@ -389,14 +407,18 @@
     .table-grid th,
     .table-grid td {
         border-bottom: 1px solid #f1f5f9;
-        padding: 0.75rem 1rem;
+        padding: 0.65rem 0.85rem;
         background: #ffffff;
+    }
+
+    .table-grid td {
+        font-size: 13px;
     }
 
     .table-grid th {
         background: #f8fafc;
         color: #475467;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.04em;

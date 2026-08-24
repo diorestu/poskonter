@@ -15,16 +15,16 @@
             </div>
         </div>
 
-        <div class="grid gap-4 p-4 xl:grid-cols-[1.05fr_0.95fr]">
-            <!-- Left Side: Catalog & Category Filter -->
-            <div class="space-y-4">
+        <div class="grid gap-4 p-4 lg:grid-cols-[1fr_360px] xl:grid-cols-[60%_40%]">
+            <!-- Left Side: Catalog & Category Filter (60% width) -->
+            <div class="space-y-4 min-w-0">
                 <div class="list-panel p-3">
                     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <div class="text-sm font-semibold">Katalog Produk Voucher</div>
                             <div class="text-[11px] text-[color:var(--muted)]">Pilih kategori voucher di bawah untuk memfilter kolom produk.</div>
                         </div>
-                        <input id="voucherSearch" class="field max-w-xs" type="text" placeholder="Cari nama / kode / varian / SN...">
+                        <input id="voucherSearch" class="field max-w-xs text-xs py-1.5" type="text" placeholder="Cari nama / kode / varian / SN...">
                     </div>
 
                     <!-- Category Pills / Selector -->
@@ -44,8 +44,8 @@
                 </div>
             </div>
 
-            <!-- Right Side: Selling Form & Recent Transactions -->
-            <div class="space-y-4">
+            <!-- Right Side: Selling Form & Recent Transactions (Maksimum 40% width) -->
+            <div class="space-y-4 max-w-full">
                 <form id="voucherForm" class="list-panel p-3">
                     <div class="mb-3 flex items-center justify-between">
                         <div class="text-sm font-semibold">Form Penjualan Voucher</div>
@@ -277,7 +277,7 @@
                             <div class="text-[11px] text-[color:var(--muted)]">${groups[groupName].length} produk</div>
                         </div>
 
-                        <div class="product-grid">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
                             ${groups[groupName].map((product) => {
                                 const selected = Number($('#voucher_product_id').val()) === Number(product.id);
                                 const serialCount = product.available_serials_count || 0;
@@ -285,28 +285,28 @@
 
                                 let stockBadge = '';
                                 if (serialCount > 0) {
-                                    stockBadge = `<span class="badge badge-ok text-[10px]">${serialCount} SN Siap</span>`;
+                                    stockBadge = `<span class="badge badge-ok text-[11px] py-0.5 px-1.5">${serialCount} SN</span>`;
                                 } else if (stockCount > 0) {
-                                    stockBadge = `<span class="badge badge-info text-[10px]">Stok: ${stockCount}</span>`;
+                                    stockBadge = `<span class="badge badge-info text-[11px] py-0.5 px-1.5">Stok: ${stockCount}</span>`;
                                 } else if (product.product_type === 'pulsa') {
-                                    stockBadge = `<span class="badge badge-info text-[10px]">Elektrik</span>`;
+                                    stockBadge = `<span class="badge badge-info text-[11px] py-0.5 px-1.5">Elektrik</span>`;
                                 } else {
-                                    stockBadge = `<span class="badge badge-danger-soft text-[10px]">Stok: 0</span>`;
+                                    stockBadge = `<span class="badge badge-danger-soft text-[11px] py-0.5 px-1.5">Stok: 0</span>`;
                                 }
 
                                 return `
-                                    <button type="button" class="product-card select-voucher-product ${selected ? 'ring-2 ring-[color:var(--accent)] bg-[#f8fbff]' : ''}" data-id="${product.id}">
+                                    <button type="button" class="product-card p-2 select-voucher-product ${selected ? 'ring-2 ring-[color:var(--accent)] bg-[#f8fbff]' : ''}" data-id="${product.id}">
                                         <div>
-                                            ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}" class="mb-2 h-20 w-full rounded-[6px] object-cover border border-[#d7e0eb]">` : ''}
-                                            <div class="font-semibold text-left text-sm leading-tight">${product.name}</div>
+                                            ${product.image_url ? `<img src="${product.image_url}" alt="${product.name}" class="mb-1.5 h-14 w-full rounded-[6px] object-cover border border-[#d7e0eb]">` : ''}
+                                            <div class="font-semibold text-left text-xs leading-tight line-clamp-2">${product.name}</div>
                                             <div class="mt-1 flex items-center justify-between gap-1">
-                                                <span class="text-[11px] text-[color:var(--muted)]">${product.variant || groupName}</span>
+                                                <span class="text-[11px] text-[color:var(--muted)] truncate max-w-[70px]">${product.variant || groupName}</span>
                                                 ${stockBadge}
                                             </div>
                                         </div>
-                                        <div class="mt-2.5 pt-2 border-t border-[#f0f4f8] text-left">
-                                            <div class="product-card-price text-sm">${money(product.price)}</div>
-                                            <div class="text-[10px] text-[color:var(--muted)] mt-0.5">Modal: ${money(product.cost_price)}</div>
+                                        <div class="mt-2 pt-1.5 border-t border-[#f0f4f8] text-left flex items-baseline justify-between gap-1">
+                                            <div class="product-card-price text-xs font-bold">${money(product.price)}</div>
+                                            <div class="text-[10px] text-[color:var(--muted)] truncate">M: ${money(product.cost_price)}</div>
                                         </div>
                                     </button>
                                 `;
@@ -381,7 +381,7 @@
 
                 $('#walletCards').html(state.wallets.length ? state.wallets.map((wallet) => `
                     <div class="stat-box p-2.5">
-                        <div class="text-[10px] uppercase tracking-wider text-[color:var(--muted)]">Dompet</div>
+                        <div class="text-[11px] uppercase tracking-wider text-[color:var(--muted)]">Dompet</div>
                         <div class="mt-0.5 font-semibold text-xs truncate">${wallet.name}</div>
                         <div class="mt-1 text-sm font-semibold text-[color:var(--accent)]">${money(wallet.balance)}</div>
                     </div>
@@ -399,11 +399,11 @@
                         <div>
                             <div class="font-semibold">${sale.reference_number}</div>
                             <div class="text-[color:var(--muted)] mt-0.5">${sale.product?.name || '-'} ${sale.product?.variant ? `(${sale.product.variant})` : ''}</div>
-                            ${sale.serial_number ? `<div class="font-mono text-[10px] text-indigo-600 mt-0.5">SN: ${sale.serial_number}</div>` : ''}
+                            ${sale.serial_number ? `<div class="font-mono text-[11px] text-indigo-600 mt-0.5">SN: ${sale.serial_number}</div>` : ''}
                         </div>
                         <div class="text-right">
                             <div class="font-semibold">${money(sale.price)}</div>
-                            <div class="text-[10px] text-[color:var(--muted)] mt-0.5">${new Date(sale.sale_date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</div>
+                            <div class="text-[11px] text-[color:var(--muted)] mt-0.5">${new Date(sale.sale_date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</div>
                         </div>
                     </div>
                 `).join(''));

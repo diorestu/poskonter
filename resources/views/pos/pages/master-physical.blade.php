@@ -131,7 +131,7 @@
             function imageCell(product) {
                 return product.image_url
                     ? `<img src="${product.image_url}" alt="${product.name}" class="h-10 w-10 rounded-[6px] object-cover border border-[#d7e0eb]">`
-                    : `<div class="flex h-10 w-10 items-center justify-center rounded-[6px] border border-dashed border-[#d7e0eb] text-[10px] text-[color:var(--muted)]">IMG</div>`;
+                    : `<div class="flex h-10 w-10 items-center justify-center rounded-[6px] border border-dashed border-[#d7e0eb] text-[11px] text-[color:var(--muted)]">IMG</div>`;
             }
 
             function previewImage(url) {
