@@ -210,30 +210,42 @@
             }
 
             function renderMovements(items) {
-                $('#stockMovementList').html(items.length ? items.map((item) => `
-                    <div class="border border-[#d8e1ec] rounded-xl bg-white px-3 py-2">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
-                                <div class="font-semibold">${item.product?.name ?? '-'}</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">${item.note ?? '-'}</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">${item.serial_number ? `SN ${item.serial_number}` : 'Tanpa serial'} · ${item.expiry_date ? `Expiry ${new Date(item.expiry_date).toLocaleDateString('id-ID')}` : 'Tanpa expiry'} · Modal ${money(item.cost_price || 0)}</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="font-semibold">${item.type === 'in' ? '+' : '-'}${item.quantity}</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">${new Date(item.created_at).toLocaleString('id-ID')}</div>
+                const movements = items || [];
+                $('#stockMovementList').html(movements.length ? movements.map((item) => {
+                    const createdDate = item.created_at ? new Date(item.created_at).toLocaleString('id-ID') : '-';
+                    const expiryDate = item.expiry_date ? `Expiry ${new Date(item.expiry_date).toLocaleDateString('id-ID')}` : 'Tanpa expiry';
+                    return `
+                        <div class="border border-[#d8e1ec] rounded-xl bg-white px-3 py-2">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="font-semibold">${item.product?.name ?? '-'}</div>
+                                    <div class="text-[11px] text-[color:var(--muted)]">${item.note ?? '-'}</div>
+                                    <div class="text-[11px] text-[color:var(--muted)]">${item.serial_number ? `SN ${item.serial_number}` : 'Tanpa serial'} · ${expiryDate} · Modal ${money(item.cost_price || 0)}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold">${item.type === 'in' ? '+' : '-'}${item.quantity}</div>
+                                    <div class="text-[11px] text-[color:var(--muted)]">${createdDate}</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `).join('') : '<div class="text-[color:var(--muted)]">Belum ada riwayat stok.</div>');
+                    `;
+                }).join('') : '<div class="text-[color:var(--muted)]">Belum ada riwayat stok.</div>');
             }
 
             function loadData() {
-                $.get(window.posConfig.dashboardUrl, { _: Date.now() })
+                $.getJSON(window.posConfig.dashboardUrl, { _: Date.now() })
                     .done((response) => {
-                        renderProducts(response.products || []);
-                        renderMovements((response.stock_movements || []).filter((item) => item.product));
+                        try {
+                            renderProducts(response.products || []);
+                            renderMovements((response.stock_movements || []).filter((item) => item && item.product));
+                        } catch (err) {
+                            console.error('Error rendering stock data:', err);
+                        }
                     })
-                    .fail(() => showAlert('Gagal memuat data stok.', 'error'));
+                    .fail((xhr, status, error) => {
+                        console.error('AJAX Error Stock Dashboard:', status, error, xhr);
+                        showAlert('Gagal memuat data stok.', 'error');
+                    });
             }
 
             $('#stockSearch').on('input', function () {

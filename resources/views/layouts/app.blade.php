@@ -93,12 +93,18 @@
                             return;
                         }
 
-                        const $ = window.$;
-
                         $.ajaxSetup({
                             headers: {
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
                             },
+                        });
+
+                        $(document).ajaxError(function (event, jqxhr) {
+                            if (jqxhr.status === 401 || jqxhr.status === 419) {
+                                window.location.href = @json(route('login'));
+                            }
                         });
 
                         if (!window.posHelpers) {

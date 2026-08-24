@@ -246,34 +246,39 @@
             }
 
             function renderRecentSales(items) {
-                $('#recentSalesList').html(items.length ? items.map((item) => `
-                    <div class="recent-card p-3">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
-                                <div class="font-semibold">${item.invoice_number}</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">${item.customer_name || 'Pelanggan umum'} · ${paymentMethodLabel(item.payment_method)}</div>
+                const sales = items || [];
+                $('#recentSalesList').html(sales.length ? sales.map((item) => {
+                    const saleDate = item.sale_date ? new Date(item.sale_date).toLocaleString('id-ID') : '-';
+                    const saleItems = item.items || [];
+                    return `
+                        <div class="recent-card p-3">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="font-semibold">${item.invoice_number || '-'}</div>
+                                    <div class="text-[11px] text-[color:var(--muted)]">${item.customer_name || 'Pelanggan umum'} · ${paymentMethodLabel(item.payment_method)}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold text-emerald-700">${money(item.total)}</div>
+                                    <div class="text-[11px] text-[color:var(--muted)]">${saleDate}</div>
+                                </div>
                             </div>
-                            <div class="text-right">
-                                <div class="font-semibold text-emerald-700">${money(item.total)}</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">${new Date(item.sale_date).toLocaleString('id-ID')}</div>
-                            </div>
+                            ${saleItems.length ? `
+                                <div class="mt-2 pt-2 border-t border-[#edf2f7] space-y-1">
+                                    ${saleItems.map((si) => `
+                                        <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
+                                            <span>${si.product?.name || 'Produk'} ${si.product?.variant ? `(${si.product.variant})` : ''} <span class="text-[color:var(--foreground)] font-medium">x${si.quantity}</span></span>
+                                            ${si.serial_number ? `<span class="badge badge-ok font-mono text-[10px]">IMEI: ${si.serial_number}</span>` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
                         </div>
-                        ${item.items && item.items.length ? `
-                            <div class="mt-2 pt-2 border-t border-[#edf2f7] space-y-1">
-                                ${item.items.map((si) => `
-                                    <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
-                                        <span>${si.product?.name || 'Produk'} ${si.product?.variant ? `(${si.product.variant})` : ''} <span class="text-[color:var(--foreground)] font-medium">x${si.quantity}</span></span>
-                                        ${si.serial_number ? `<span class="badge badge-ok font-mono text-[10px]">IMEI: ${si.serial_number}</span>` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `).join('') : '<div class="text-[color:var(--muted)]">Belum ada transaksi.</div>');
+                    `;
+                }).join('') : '<div class="text-[color:var(--muted)]">Belum ada transaksi.</div>');
             }
 
             function renderCategoryTabs(products) {
-                const categories = ['all'].concat([...new Set(products.map((product) => product.category).filter(Boolean))]);
+                const categories = ['all'].concat([...new Set((products || []).map((product) => product.category).filter(Boolean))]);
                 $('#categoryTabs').html(categories.map((category) => {
                     const isActive = state.activeCategory === category;
                     const label = category === 'all' ? 'Semua' : category;
@@ -286,7 +291,7 @@
             }
 
             function renderProducts(products) {
-                state.products = products.filter((product) => product.is_active && product.product_type !== 'pulsa');
+                state.products = (products || []).filter((product) => product.is_active && product.product_type !== 'pulsa');
                 renderCategoryTabs(state.products);
 
                 const visibleProducts = state.activeCategory === 'all'
@@ -373,13 +378,20 @@
             }
 
             function loadData() {
-                $.get(window.posConfig.dashboardUrl)
+                $.getJSON(window.posConfig.dashboardUrl, { _: Date.now() })
                     .done((response) => {
-                        renderProducts(response.products);
-                        renderRecentSales(response.recent_sales);
-                        renderCart();
+                        try {
+                            renderProducts(response.products || []);
+                            renderRecentSales(response.recent_sales || []);
+                            renderCart();
+                        } catch (err) {
+                            console.error('Error rendering POS data:', err);
+                        }
                     })
-                    .fail(() => showAlert('Gagal memuat halaman POS.', 'error'));
+                    .fail((xhr, status, error) => {
+                        console.error('AJAX Error POS Dashboard:', status, error, xhr);
+                        showAlert('Gagal memuat halaman POS.', 'error');
+                    });
             }
 
             function submitPayment(createNew) {
