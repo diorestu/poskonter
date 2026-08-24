@@ -157,14 +157,20 @@
 
     .menu-link:hover {
         background: #f1f5f9;
-        color: var(--text);
+        color: #0f172a;
     }
 
     .menu-link-active {
-        background: #2563eb;
-        color: #ffffff !important;
+        background: #e0edff;
+        border-color: #bfdbfe;
+        color: #1d4ed8 !important;
         font-weight: 600;
-        box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+    }
+
+    .menu-link-active:hover {
+        background: #cfe2fe;
+        border-color: #93c5fd;
+        color: #000000 !important;
     }
 
     .menu-dropdown {
@@ -208,18 +214,25 @@
         border-radius: 6px;
         padding: 0.55rem 0.7rem;
         color: var(--text);
+        transition: all 140ms ease;
     }
 
     .menu-dropdown-item:hover {
-        background: #f7faff;
-        border-color: #d7e2f0;
+        background: #f1f5f9;
+        color: #000000;
     }
 
     .menu-dropdown-item-active {
-        background: #eef5ff;
-        border-color: #cfe0f6;
+        background: #e0edff;
+        border-color: #bfdbfe;
         color: #1d4ed8;
         font-weight: 600;
+    }
+
+    .menu-dropdown-item-active:hover {
+        background: #cfe2fe;
+        border-color: #93c5fd;
+        color: #000000 !important;
     }
 
     .workspace {
@@ -491,10 +504,16 @@
     }
 
     .category-tab-active {
-        border-color: #2563eb;
-        background: #eff6ff;
+        border-color: #bfdbfe;
+        background: #e0edff;
         color: #1d4ed8;
         font-weight: 600;
+    }
+
+    .category-tab-active:hover {
+        border-color: #93c5fd;
+        background: #cfe2fe;
+        color: #000000 !important;
     }
 
     .product-grid {

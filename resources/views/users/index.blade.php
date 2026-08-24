@@ -1,15 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
-    <section class="pane">
-        <div class="toolbar flex items-center justify-between px-4 py-3">
-            <div>
-                <h1 class="font-semibold">User Management</h1>
-                <p class="text-[color:var(--muted)]">Kelola akun dan role pengguna aplikasi.</p>
-            </div>
-        </div>
-
-        <div class="grid gap-4 p-4 xl:grid-cols-[420px_1fr]">
+    <section class="space-y-4">
+        <div class="grid gap-4 xl:grid-cols-[420px_1fr]">
             <div class="space-y-4">
                 <form id="userForm" class="list-panel p-3">
                     <input type="hidden" id="user_id">
@@ -26,7 +19,19 @@
                         <div class="grid gap-3 md:grid-cols-2">
                             <div>
                                 <label class="mb-1 block font-medium">Password</label>
-                                <input class="field" type="password" id="user_password" placeholder="Minimal 8 karakter">
+                                <div class="relative flex items-center">
+                                    <input class="field pr-10" type="password" id="user_password" placeholder="Minimal 8 karakter">
+                                    <button type="button" class="absolute right-3 flex items-center justify-center text-[color:var(--muted)] hover:text-[color:var(--text)] transition cursor-pointer" id="toggleUserPassword" title="Lihat / Sembunyikan Password">
+                                        <svg id="eyeOpenUserIcon" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                        <svg id="eyeClosedUserIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                            <line x1="1" y1="1" x2="23" y2="23"></line>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label class="mb-1 block font-medium">Role</label>
@@ -204,6 +209,14 @@
                 }).fail((xhr) => {
                     showAlert(xhr.responseJSON?.message || 'Gagal menyimpan user.', 'error');
                 });
+            });
+
+            $('#toggleUserPassword').on('click', function () {
+                const passInput = document.getElementById('user_password');
+                const isPassword = passInput.type === 'password';
+                passInput.type = isPassword ? 'text' : 'password';
+                $('#eyeOpenUserIcon').toggleClass('hidden', !isPassword);
+                $('#eyeClosedUserIcon').toggleClass('hidden', isPassword);
             });
 
             loadUsers();

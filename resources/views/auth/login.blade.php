@@ -28,7 +28,21 @@
                 </div>
                 <div>
                     <label class="mb-1 block font-medium text-xs">Password</label>
-                    <input class="field" type="password" id="password" name="password" placeholder="••••••••" required>
+                    <div class="relative flex items-center">
+                        <input class="field pr-10" type="password" id="password" name="password" placeholder="••••••••" required>
+                        <button type="button" class="absolute right-3 flex items-center justify-center text-[color:var(--muted)] hover:text-[color:var(--text)] transition cursor-pointer" id="togglePassword" title="Lihat / Sembunyikan Password">
+                            <!-- Eye Open Icon (Visible when type="text") -->
+                            <svg id="eyeOpenIcon" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <!-- Eye Closed Icon (Visible when type="password") -->
+                            <svg id="eyeClosedIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="flex items-center justify-between">
                     <label class="flex items-center gap-2 text-xs text-[color:var(--muted)] cursor-pointer">
@@ -56,6 +70,20 @@
         </div>
 
         <script>
+            const togglePasswordBtn = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            const eyeOpenIcon = document.getElementById('eyeOpenIcon');
+            const eyeClosedIcon = document.getElementById('eyeClosedIcon');
+
+            if (togglePasswordBtn && passwordInput) {
+                togglePasswordBtn.addEventListener('click', function() {
+                    const isPassword = passwordInput.type === 'password';
+                    passwordInput.type = isPassword ? 'text' : 'password';
+                    eyeOpenIcon.classList.toggle('hidden', !isPassword);
+                    eyeClosedIcon.classList.toggle('hidden', isPassword);
+                });
+            }
+
             document.querySelectorAll('.quick-login').forEach(btn => {
                 btn.addEventListener('click', function() {
                     document.getElementById('email').value = this.dataset.email;

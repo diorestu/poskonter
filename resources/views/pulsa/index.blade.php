@@ -14,7 +14,7 @@
 
                 <div class="list-panel p-3">
                     <div class="mb-3 text-sm font-semibold">Dompet Saldo</div>
-                    <div id="walletCards" class="grid gap-3 md:grid-cols-2"></div>
+                    <div id="walletCards" class="grid gap-2.5 grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"></div>
                 </div>
             </div>
 
@@ -247,12 +247,12 @@
                 walletOptions('#topup_wallet_id');
 
                 $('#walletCards').html(state.wallets.length ? state.wallets.map((wallet) => `
-                    <div class="stat-box p-3">
-                        <div class="text-[11px] text-[color:var(--muted)]">Dompet</div>
-                        <div class="mt-1 font-semibold">${wallet.name}</div>
-                        <div class="mt-2 text-lg font-semibold text-[color:var(--accent)]">${money(wallet.balance)}</div>
+                    <div class="stat-box p-2.5">
+                        <div class="text-[11px] text-[color:var(--muted)] truncate">Dompet</div>
+                        <div class="mt-0.5 font-semibold text-xs truncate" title="${wallet.name}">${wallet.name}</div>
+                        <div class="mt-1.5 text-sm font-semibold font-mono text-[color:var(--accent)] truncate">${money(wallet.balance)}</div>
                     </div>
-                `).join('') : '<div class="text-[color:var(--muted)]">Belum ada dompet saldo.</div>');
+                `).join('') : '<div class="col-span-full text-xs text-[color:var(--muted)]">Belum ada dompet saldo.</div>');
             }
 
             function fillDefaultProduct() {
