@@ -737,4 +737,26 @@ class PosController extends Controller
             'name' => $providerName,
         ]);
     }
+
+    public function salesHistory(Request $request): JsonResponse
+    {
+        $physicalSales = Sale::query()
+            ->with(['items.product:id,name,code,variant,category'])
+            ->latest('sale_date')
+            ->latest('id')
+            ->limit(200)
+            ->get();
+
+        $pulsaSales = PulsaSale::query()
+            ->with(['product:id,name,variant,category', 'wallet:id,name'])
+            ->latest('sale_date')
+            ->latest('id')
+            ->limit(200)
+            ->get();
+
+        return response()->json([
+            'pos_sales' => $physicalSales,
+            'pulsa_sales' => $pulsaSales,
+        ]);
+    }
 }

@@ -17,11 +17,17 @@
             <div class="pos-product-panel p-4 flex flex-col min-w-0 overflow-x-hidden">
                 <div class="flex flex-wrap items-center justify-between gap-3 pb-3 shrink-0">
                     <div id="categoryTabs" class="category-tabs flex-1 min-w-0"></div>
-                    <div class="w-full sm:w-64 relative flex items-center">
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[#64748b]">
-                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>
+                    <div class="flex items-center gap-2">
+                        <div class="w-full sm:w-64 relative flex items-center">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[#64748b]">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>
+                            </div>
+                            <input type="text" id="posProductSearch" class="field py-1.5 pl-8 pr-2.5 text-xs" placeholder="Scan Barcode / Cari nama..." autocomplete="off">
                         </div>
-                        <input type="text" id="posProductSearch" class="field py-1.5 pl-8 pr-2.5 text-xs" placeholder="Scan Barcode / Cari nama..." autocomplete="off">
+                        <button type="button" class="btn btn-secondary py-1.5 px-2.5 text-xs shrink-0" id="openRecentSalesModal" title="Lihat transaksi terakhir kasir">
+                            <span class="btn-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+                            <span class="hidden sm:inline font-medium">Riwayat POS</span>
+                        </button>
                     </div>
                 </div>
                 <div id="productPicker" class="product-grid flex-1 overflow-y-auto overflow-x-hidden pr-1.5 pb-2"></div>
@@ -171,6 +177,33 @@
                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/><path d="M4 4h16v16H4z"/></svg></span>
                         <span>Simpan & Baru</span>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Riwayat Transaksi Terakhir POS -->
+    <div id="recentSalesModal" class="modal-backdrop hidden">
+        <div class="modal-card max-w-xl">
+            <div class="modal-head flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="font-semibold text-base">Riwayat Transaksi Kasir POS</h2>
+                    <p class="mt-1 text-xs text-[color:var(--muted)]">10 transaksi POS terbaru yang baru saja diproses.</p>
+                </div>
+                <button type="button" class="btn btn-secondary" id="closeRecentSalesModal">
+                    <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
+                    <span>Tutup</span>
+                </button>
+            </div>
+            <div class="modal-body p-4 space-y-3">
+                <div id="recentSalesList" class="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+                    <div class="text-center py-6 text-xs text-[color:var(--muted)]">Memuat riwayat transaksi...</div>
+                </div>
+                <div class="pt-2 border-t border-[#edf2f7] text-right">
+                    <a href="{{ route('sales-history.index') }}" class="text-xs font-semibold text-blue-600 hover:underline inline-flex items-center gap-1">
+                        <span>Buka Riwayat Penjualan Lengkap</span>
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </a>
                 </div>
             </div>
         </div>
@@ -676,6 +709,14 @@
 
             $('#closePaymentModal').on('click', function () {
                 $('#paymentModal').addClass('hidden');
+            });
+
+            $('#openRecentSalesModal').on('click', function () {
+                $('#recentSalesModal').removeClass('hidden');
+            });
+
+            $('#closeRecentSalesModal').on('click', function () {
+                $('#recentSalesModal').addClass('hidden');
             });
 
             $('#clearCart').on('click', function () {

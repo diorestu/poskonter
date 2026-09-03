@@ -31,6 +31,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/products', [PosController::class, 'products'])->name('products');
             Route::post('/products/{product}/stock', [PosController::class, 'addStock'])->name('products.stock');
             Route::post('/sales', [PosController::class, 'storeSale'])->name('sales.store');
+            Route::get('/sales/history-data', [PosController::class, 'salesHistory'])->name('sales.history-data');
             Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
             Route::get('/pulsa/dashboard', [PulsaController::class, 'dashboard'])->name('pulsa.dashboard');
             Route::post('/pulsa/sales', [PulsaController::class, 'storeSale'])->name('pulsa.sales.store');
