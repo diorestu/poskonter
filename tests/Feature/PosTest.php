@@ -267,6 +267,54 @@ class PosTest extends TestCase
         ]);
     }
 
+    public function test_stock_in_supports_custom_quantity_for_same_serial(): void
+    {
+        $this->signIn('cashier');
+
+        $product = Product::create([
+            'code' => 'KBL-TYPEC',
+            'name' => 'Kabel Data Type-C Kaleng',
+            'product_type' => 'regular',
+            'category' => 'Aksesoris',
+            'variant' => '1 Kaleng',
+            'unit' => 'pcs',
+            'price' => 15000,
+            'cost_price' => 0,
+            'stock' => 0,
+            'minimum_stock' => 5,
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson("/ajax/products/{$product->id}/stock", [
+            'items' => [
+                [
+                    'serial_number' => 'SN-KLNG-20PCS',
+                    'quantity' => 20,
+                    'expiry_date' => '2027-01-01',
+                    'cost_price' => 8000,
+                ],
+            ],
+            'note' => '1 kaleng isi 20 kabel data',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('product.stock', 20);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'stock' => 20,
+            'cost_price' => 8000,
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'serial_number' => 'SN-KLNG-20PCS',
+            'expiry_date' => '2027-01-01 00:00:00',
+            'cost_price' => 8000,
+            'quantity' => 20,
+        ]);
+    }
+
     public function test_cashier_cannot_access_admin_pages(): void
     {
         $this->signIn('cashier');

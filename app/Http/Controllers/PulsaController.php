@@ -567,7 +567,7 @@ class PulsaController extends Controller
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
             ->orderBy('id', 'asc')
-            ->get(['id', 'serial_number', 'expiry_date', 'cost_price']);
+            ->get(['id', 'serial_number', 'quantity', 'expiry_date', 'cost_price']);
 
         if ($inMovements->isEmpty() && empty($product->serial_number)) {
             return [];
@@ -604,32 +604,42 @@ class PulsaController extends Controller
 
         foreach ($inMovements as $movement) {
             $sn = (string) $movement->serial_number;
+            $movementQty = max(1, (int) ($movement->quantity ?? 1));
             $totalSold = $soldCounts[$sn] ?? 0;
             $alreadyConsumed = $consumedCounts[$sn] ?? 0;
 
-            if ($alreadyConsumed < $totalSold) {
-                $consumedCounts[$sn] = $alreadyConsumed + 1;
-                continue;
+            $remaining = 0;
+            for ($q = 0; $q < $movementQty; $q++) {
+                if ($alreadyConsumed < $totalSold) {
+                    $alreadyConsumed++;
+                    $consumedCounts[$sn] = $alreadyConsumed;
+                } else {
+                    $remaining++;
+                }
             }
 
-            $available[] = [
-                'id' => $movement->id,
-                'serial_number' => $sn,
-                'expiry_date' => $movement->expiry_date ? $movement->expiry_date->format('Y-m-d') : null,
-                'cost_price' => (float) $movement->cost_price,
-            ];
+            if ($remaining > 0) {
+                $available[] = [
+                    'id' => $movement->id,
+                    'serial_number' => $sn,
+                    'quantity' => $remaining,
+                    'expiry_date' => $movement->expiry_date ? $movement->expiry_date->format('Y-m-d') : null,
+                    'cost_price' => (float) $movement->cost_price,
+                ];
+            }
         }
 
         if (! empty($product->serial_number)) {
             $productSn = (string) $product->serial_number;
             $totalSold = $soldCounts[$productSn] ?? 0;
             $alreadyConsumed = $consumedCounts[$productSn] ?? 0;
-            if ($alreadyConsumed >= $totalSold) {
+            if ($alreadyConsumed < (int) max(1, $product->stock)) {
                 $exists = collect($available)->contains('serial_number', $productSn);
                 if (! $exists) {
                     $available[] = [
                         'id' => null,
                         'serial_number' => $productSn,
+                        'quantity' => max(1, (int) $product->stock - $alreadyConsumed),
                         'expiry_date' => null,
                         'cost_price' => (float) $product->cost_price,
                     ];

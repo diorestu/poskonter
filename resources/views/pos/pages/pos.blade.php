@@ -17,8 +17,11 @@
             <div class="pos-product-panel p-4 flex flex-col min-w-0 overflow-x-hidden">
                 <div class="flex flex-wrap items-center justify-between gap-3 pb-3 shrink-0">
                     <div id="categoryTabs" class="category-tabs flex-1 min-w-0"></div>
-                    <div class="w-full sm:w-56">
-                        <input type="text" id="posProductSearch" class="field py-1.5 px-2.5" placeholder="Cari nama / kode...">
+                    <div class="w-full sm:w-64 relative flex items-center">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[#64748b]">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>
+                        </div>
+                        <input type="text" id="posProductSearch" class="field py-1.5 pl-8 pr-2.5 text-xs" placeholder="Scan Barcode / Cari nama..." autocomplete="off">
                     </div>
                 </div>
                 <div id="productPicker" class="product-grid flex-1 overflow-y-auto overflow-x-hidden pr-1.5 pb-2"></div>
@@ -413,25 +416,45 @@
                 });
             }
 
-            $(document).on('click', '.add-to-cart', function () {
-                const product = state.products.find((item) => item.id === Number($(this).data('id')));
-                if (!product) return;
+            function playScanBeep() {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1760, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.08);
+                } catch (e) {
+                    // AudioContext optional
+                }
+            }
+
+            function addToCart(product, specificSerial = null) {
+                if (!product) return false;
+
+                if (Number(product.stock) < 1) {
+                    showAlert(`Stok produk ${product.name} kosong!`, 'error');
+                    return false;
+                }
 
                 const existing = state.cart.find((item) => item.id === product.id);
                 if (existing) {
                     if (existing.quantity >= product.stock) {
                         showAlert('Jumlah melebihi stok tersedia.', 'error');
-                        return;
+                        return false;
                     }
                     existing.quantity += 1;
-                } else {
-                    if (Number(product.stock) < 1) {
-                        showAlert('Stok produk kosong.', 'error');
-                        return;
+                    if (specificSerial) {
+                        existing.serial_number = specificSerial;
                     }
-
+                } else {
                     const availableSerials = product.available_serials || [];
-                    const defaultSerial = availableSerials.length > 0 ? availableSerials[0].serial_number : '';
+                    const defaultSerial = specificSerial || (availableSerials.length > 0 ? availableSerials[0].serial_number : '');
 
                     state.cart.push({
                         id: product.id,
@@ -448,6 +471,93 @@
                 }
 
                 renderCart();
+                return true;
+            }
+
+            function handleBarcodeScan(code) {
+                const rawCode = (code || '').trim();
+                if (!rawCode) return false;
+                const lowerCode = rawCode.toLowerCase();
+
+                // 1. Check exact match on product code or serial_number
+                let matchedProduct = state.products.find((p) => 
+                    (p.code && p.code.toLowerCase() === lowerCode) || 
+                    (p.serial_number && p.serial_number.toLowerCase() === lowerCode)
+                );
+                let matchedSerial = null;
+
+                // 2. If not matched, check available_serials inside each product
+                if (!matchedProduct) {
+                    for (const p of state.products) {
+                        if (p.available_serials && p.available_serials.length) {
+                            const foundSn = p.available_serials.find((s) => s.serial_number && s.serial_number.toLowerCase() === lowerCode);
+                            if (foundSn) {
+                                matchedProduct = p;
+                                matchedSerial = foundSn.serial_number;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (matchedProduct) {
+                    const success = addToCart(matchedProduct, matchedSerial);
+                    if (success) {
+                        playScanBeep();
+                        showAlert(`[Scan] ${matchedProduct.name} ditambahkan!`);
+                    }
+                    $('#posProductSearch').val('').focus();
+                    renderProducts(state.products);
+                    return true;
+                } else {
+                    showAlert(`Barcode/Serial "${rawCode}" tidak ditemukan.`, 'error');
+                    return false;
+                }
+            }
+
+            $(document).on('click', '.add-to-cart', function () {
+                const product = state.products.find((item) => item.id === Number($(this).data('id')));
+                if (product) {
+                    addToCart(product);
+                }
+            });
+
+            $('#posProductSearch').on('keydown', function (e) {
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    e.preventDefault();
+                    const val = $(this).val().trim();
+                    if (val) {
+                        handleBarcodeScan(val);
+                    }
+                }
+            });
+
+            let barcodeBuffer = '';
+            let lastKeyTime = 0;
+
+            $(document).on('keydown', function (e) {
+                const tag = (e.target.tagName || '').toLowerCase();
+                const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+                if (isInput && e.target.id === 'posProductSearch') {
+                    return;
+                }
+
+                const currentTime = Date.now();
+                const isScannerFast = (currentTime - lastKeyTime) < 65;
+                lastKeyTime = currentTime;
+
+                if (e.key === 'Enter') {
+                    if (barcodeBuffer.length >= 2 && isScannerFast) {
+                        e.preventDefault();
+                        handleBarcodeScan(barcodeBuffer);
+                        barcodeBuffer = '';
+                    }
+                } else if (e.key && e.key.length === 1) {
+                    if (!isScannerFast && barcodeBuffer.length > 0) {
+                        barcodeBuffer = '';
+                    }
+                    barcodeBuffer += e.key;
+                }
             });
 
             $(document).on('click', '.category-tab', function () {

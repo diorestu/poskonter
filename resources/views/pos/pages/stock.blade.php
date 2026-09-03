@@ -17,15 +17,21 @@
                         </div>
 
                         <div>
-                            <div class="mb-2 flex items-center justify-between gap-2">
+                            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                                 <label class="block font-medium">Detail Item Masuk</label>
-                                <button class="btn btn-secondary py-1 px-2.5 min-h-[30px]" type="button" id="addStockRow">
-                                    <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
-                                    <span>Tambah Baris</span>
-                                </button>
+                                <div class="flex items-center gap-1.5">
+                                    <button class="btn btn-secondary py-1 px-2 min-h-[30px] text-xs" type="button" id="openRangeModal" title="Generate banyak serial otomatis">
+                                        <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/></svg></span>
+                                        <span>+ Range SN</span>
+                                    </button>
+                                    <button class="btn btn-secondary py-1 px-2 min-h-[30px] text-xs" type="button" id="addStockRow">
+                                        <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
+                                        <span>+ Baris</span>
+                                    </button>
+                                </div>
                             </div>
                             <div id="stockItemRows" class="space-y-2"></div>
-                            <div class="mt-2 text-[11px] text-[color:var(--muted)]">Satu baris mewakili satu unit stok masuk. Serial/IMEI opsional jika produk non-serial.</div>
+                            <div class="mt-2 text-[11px] text-[color:var(--muted)]">Satu baris bisa mewakili 1 atau banyak pcs (contoh: 1 kaleng kabel data isi 20 pcs dengan nomor seri yang sama).</div>
                         </div>
 
                         <div>
@@ -69,6 +75,64 @@
             </div>
         </div>
     </section>
+
+    <!-- Modal Generate Serial Number Range -->
+    <div id="serialRangeModal" class="modal-backdrop hidden">
+        <div class="modal-card max-w-lg">
+            <div class="modal-head flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="font-semibold text-base">Generate Serial Number Range</h2>
+                    <p class="mt-1 text-xs text-[color:var(--muted)]">Input stok banyak sekaligus dengan nomor seri berurutan otomatis (misal: 20 pcs).</p>
+                </div>
+                <button type="button" class="btn btn-secondary" id="closeRangeModal">
+                    <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
+                    <span>Tutup</span>
+                </button>
+            </div>
+            <div class="modal-body space-y-3.5 p-4">
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block font-medium text-xs">Nomor Seri Awal (Start SN) <span class="text-red-500">*</span></label>
+                        <input class="field text-xs font-mono" type="text" id="range_start_sn" placeholder="Contoh: KBL-001 / SN10001" autocomplete="off" required>
+                        <div class="mt-1 text-[10px] text-[color:var(--muted)]">Format akhiran angka (misal: 001, 101).</div>
+                    </div>
+                    <div>
+                        <label class="mb-1 block font-medium text-xs">Jumlah Unit (Qty Pcs) <span class="text-red-500">*</span></label>
+                        <input class="field text-xs font-bold text-center" type="number" min="1" max="500" id="range_count" value="20" required>
+                        <div class="mt-1 text-[10px] text-[color:var(--muted)]">Jumlah baris serial yang dibuat.</div>
+                    </div>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block font-medium text-xs">Harga Modal (per pcs) <span class="text-red-500">*</span></label>
+                        <input class="field text-xs" type="text" inputmode="numeric" data-number-mask id="range_cost_price" placeholder="Wajib diisi">
+                    </div>
+                    <div>
+                        <label class="mb-1 block font-medium text-xs">Expiry Date (Opsional)</label>
+                        <input class="field text-xs" type="date" id="range_expiry_date">
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-3 text-xs">
+                    <div class="flex items-center justify-between text-[#475569] font-medium">
+                        <span>Pratinjau Rentang SN:</span>
+                        <span id="rangeCountText" class="text-xs font-bold text-[#2563eb]">20 Unit</span>
+                    </div>
+                    <div id="rangePreviewSample" class="mt-1.5 font-mono text-[11px] text-[#1e293b] break-all bg-white p-2 rounded border border-[#cbd5e1]">
+                        Ketik Nomor Seri Awal di atas...
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" class="btn btn-primary flex-1 py-2 font-medium" id="btnApplyRange">
+                        <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10"/><path d="M4 4h16v16H4z"/></svg></span>
+                        <span>Generate & Masukkan ke Form Stok</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -98,25 +162,31 @@
                 return `
                     <div class="rounded-xl border border-[#d8e1ec] bg-white p-3 stock-item-row" data-index="${index}">
                         <div class="mb-2 flex items-center justify-between gap-2">
-                            <div class="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">Item ${index + 1}</div>
-                            <button class="btn btn-secondary remove-stock-row" type="button">
+                            <div class="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">Item / Baris ${index + 1}</div>
+                            <button class="btn btn-secondary remove-stock-row py-1 px-2 text-xs" type="button">
                                 <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
                                 <span>Hapus</span>
                             </button>
                         </div>
-                        <div class="grid gap-3">
-                            <div>
-                                <label class="mb-1 block font-medium">Serial Number</label>
-                                <input class="field stock-serial-number" type="text" value="${values.serial_number || ''}" placeholder="Opsional">
-                            </div>
-                            <div class="grid gap-3 md:grid-cols-2">
+                        <div class="grid gap-2.5">
+                            <div class="grid gap-2.5 grid-cols-1 sm:grid-cols-[1fr_110px]">
                                 <div>
-                                    <label class="mb-1 block font-medium">Expiry Date</label>
-                                    <input class="field stock-expiry-date" type="date" value="${values.expiry_date || ''}">
+                                    <label class="mb-1 block font-medium">Serial Number / IMEI</label>
+                                    <input class="field stock-serial-number font-mono text-xs" type="text" value="${values.serial_number || ''}" placeholder="Opsional (contoh: SN12345)">
                                 </div>
                                 <div>
-                                    <label class="mb-1 block font-medium">Harga Modal</label>
-                                    <input class="field stock-cost-price" type="text" inputmode="numeric" data-number-mask value="${values.cost_price || ''}" placeholder="Wajib diisi">
+                                    <label class="mb-1 block font-medium">Jumlah (Pcs)</label>
+                                    <input class="field stock-quantity text-center font-bold text-xs" type="number" min="1" step="1" value="${values.quantity || 1}" required>
+                                </div>
+                            </div>
+                            <div class="grid gap-2.5 md:grid-cols-2">
+                                <div>
+                                    <label class="mb-1 block font-medium">Expiry Date</label>
+                                    <input class="field stock-expiry-date text-xs" type="date" value="${values.expiry_date || ''}">
+                                </div>
+                                <div>
+                                    <label class="mb-1 block font-medium">Harga Modal (per pcs)</label>
+                                    <input class="field stock-cost-price text-xs" type="text" inputmode="numeric" data-number-mask value="${values.cost_price || ''}" placeholder="Wajib diisi">
                                 </div>
                             </div>
                         </div>
@@ -127,7 +197,7 @@
             function reindexRows() {
                 $('#stockItemRows .stock-item-row').each(function (index) {
                     $(this).attr('data-index', index);
-                    $(this).find('.text-xs').text(`Item ${index + 1}`);
+                    $(this).find('.text-xs').first().text(`Item / Baris ${index + 1}`);
                 });
             }
 
@@ -148,8 +218,10 @@
             function selectedStockItems() {
                 return $('#stockItemRows .stock-item-row').map(function () {
                     const $row = $(this);
+                    const qty = parseInt($row.find('.stock-quantity').val(), 10);
                     return {
                         serial_number: $row.find('.stock-serial-number').val().trim(),
+                        quantity: isNaN(qty) || qty < 1 ? 1 : qty,
                         expiry_date: $row.find('.stock-expiry-date').val(),
                         cost_price: maskedNumberValue($row.find('.stock-cost-price')),
                     };
@@ -242,6 +314,106 @@
                         showAlert('Gagal memuat data stok.', 'error');
                     });
             }
+
+            function parseSerialRange(startSn, count) {
+                if (!startSn || count <= 0) return [];
+
+                const match = startSn.match(/^(.*?)(\d+)$/);
+                if (!match) {
+                    const res = [];
+                    for (let i = 1; i <= count; i++) {
+                        res.push(`${startSn}-${i}`);
+                    }
+                    return res;
+                }
+
+                const prefix = match[1];
+                const numStr = match[2];
+                const startNum = parseInt(numStr, 10);
+                const padLen = numStr.length;
+
+                const list = [];
+                for (let i = 0; i < count; i++) {
+                    const curNum = startNum + i;
+                    const curNumPadded = String(curNum).padStart(padLen, '0');
+                    list.push(`${prefix}${curNumPadded}`);
+                }
+                return list;
+            }
+
+            function updateRangePreview() {
+                const startSn = ($('#range_start_sn').val() || '').trim();
+                const count = Math.max(1, Math.min(500, parseInt($('#range_count').val(), 10) || 1));
+                $('#rangeCountText').text(`${count} Unit`);
+
+                if (!startSn) {
+                    $('#rangePreviewSample').text('Ketik Nomor Seri Awal di atas...');
+                    return;
+                }
+
+                const serials = parseSerialRange(startSn, count);
+                if (serials.length <= 4) {
+                    $('#rangePreviewSample').text(serials.join(', '));
+                } else {
+                    $('#rangePreviewSample').text(`${serials[0]}, ${serials[1]}, ${serials[2]}, ... , ${serials[serials.length - 1]}`);
+                }
+            }
+
+            $('#openRangeModal').on('click', function () {
+                $('#serialRangeModal').removeClass('hidden');
+                $('#range_start_sn').focus();
+                updateRangePreview();
+            });
+
+            $('#closeRangeModal').on('click', function () {
+                $('#serialRangeModal').addClass('hidden');
+            });
+
+            $('#range_start_sn, #range_count').on('input', function () {
+                updateRangePreview();
+            });
+
+            $('#btnApplyRange').on('click', function () {
+                const startSn = ($('#range_start_sn').val() || '').trim();
+                const count = Math.max(1, Math.min(500, parseInt($('#range_count').val(), 10) || 1));
+                const costPrice = maskedNumberValue('#range_cost_price');
+                const expiryDate = $('#range_expiry_date').val();
+
+                if (!startSn) {
+                    showAlert('Nomor seri awal wajib diisi.', 'error');
+                    $('#range_start_sn').focus();
+                    return;
+                }
+
+                if (costPrice <= 0) {
+                    showAlert('Harga modal per pcs wajib diisi.', 'error');
+                    $('#range_cost_price').focus();
+                    return;
+                }
+
+                const serials = parseSerialRange(startSn, count);
+
+                const currentRows = $('#stockItemRows .stock-item-row');
+                if (currentRows.length === 1) {
+                    const firstSn = currentRows.first().find('.stock-serial-number').val().trim();
+                    const firstCost = maskedNumberValue(currentRows.first().find('.stock-cost-price'));
+                    if (!firstSn && firstCost <= 0) {
+                        $('#stockItemRows').empty();
+                    }
+                }
+
+                serials.forEach((sn) => {
+                    addStockRow({
+                        serial_number: sn,
+                        quantity: 1,
+                        cost_price: costPrice,
+                        expiry_date: expiryDate,
+                    });
+                });
+
+                $('#serialRangeModal').addClass('hidden');
+                showAlert(`${serials.length} baris serial number (${serials[0]} s/d ${serials[serials.length - 1]}) berhasil ditambahkan ke form!`);
+            });
 
             $('#stockSearch').on('input', function () {
                 renderProducts(state.products);
