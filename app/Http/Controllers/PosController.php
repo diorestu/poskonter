@@ -246,7 +246,7 @@ class PosController extends Controller
         $stockMovements = StockMovement::query()
             ->with('product:id,name,code,unit')
             ->latest('id')
-            ->limit(10)
+            ->limit(5)
             ->get(['id', 'product_id', 'type', 'quantity', 'expiry_date', 'serial_number', 'cost_price', 'note', 'created_at']);
 
         return response()->json([

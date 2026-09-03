@@ -59,10 +59,10 @@
                                 <thead class="text-left sticky top-0 z-10">
                                     <tr>
                                         <th>Item</th>
-                                        <th width="65">Qty</th>
+                                        <th width="105" class="text-center">Qty</th>
                                         <th width="125">IMEI/SN</th>
-                                        <th width="90">Subtotal</th>
-                                        <th width="45"></th>
+                                        <th width="85" class="text-right">Subtotal</th>
+                                        <th width="35"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="cartTable">
@@ -349,23 +349,27 @@
                         return `
                             <tr>
                                 <td>
-                                    <div class="font-medium">${item.name}</div>
+                                    <div class="font-medium text-xs text-[color:var(--text)]">${item.name}</div>
                                     <div class="text-[11px] text-[color:var(--muted)]">${item.variant || item.unit || ''}</div>
                                     <div class="text-[11px] text-[color:var(--muted)]">${money(item.price)}</div>
                                 </td>
-                                <td><input class="field cart-qty field-number text-xs" type="text" inputmode="numeric" data-number-mask data-id="${item.id}" value="${item.quantity}"></td>
+                                <td class="text-center whitespace-nowrap">
+                                    <div class="inline-flex items-center justify-center gap-1">
+                                        <button type="button" class="cart-qty-btn cart-qty-minus" data-id="${item.id}" title="Kurangi">−</button>
+                                        <input class="cart-qty" type="number" min="1" max="${item.stock}" data-id="${item.id}" value="${item.quantity}">
+                                        <button type="button" class="cart-qty-btn cart-qty-plus" data-id="${item.id}" title="Tambah">+</button>
+                                    </div>
+                                </td>
                                 <td>${serialCell}</td>
-                                <td class="font-semibold text-xs">${money(item.price * item.quantity)}</td>
-                                <td>
-                                    <button type="button" class="remove-cart inline-flex items-center gap-1 text-[color:var(--danger)] text-xs" data-id="${item.id}">
+                                <td class="font-semibold text-xs text-right">${money(item.price * item.quantity)}</td>
+                                <td class="text-center">
+                                    <button type="button" class="remove-cart inline-flex items-center justify-center text-[color:var(--danger)] text-xs p-1" data-id="${item.id}" title="Hapus Item">
                                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
-                                        <span>Hapus</span>
                                     </button>
                                 </td>
                             </tr>
                         `;
                     }).join(''));
-                    bindNumberMasks(document.getElementById('cartTable'));
                 }
 
                 const totals = cartTotals();
@@ -569,12 +573,42 @@
                 renderProducts(state.products);
             });
 
-            $(document).on('input', '.cart-qty', function () {
-                const item = state.cart.find((entry) => entry.id === Number($(this).data('id')));
+            $(document).on('click', '.cart-qty-plus', function () {
+                const id = Number($(this).data('id'));
+                const item = state.cart.find((entry) => entry.id === id);
                 if (!item) return;
 
-                item.quantity = Math.min(Math.max(1, parseNumber($(this).val())), item.stock);
-                $(this).val(formatNumber(item.quantity));
+                if (item.quantity >= item.stock) {
+                    showAlert('Jumlah melebihi stok tersedia.', 'error');
+                    return;
+                }
+                item.quantity += 1;
+                renderCart();
+            });
+
+            $(document).on('click', '.cart-qty-minus', function () {
+                const id = Number($(this).data('id'));
+                const item = state.cart.find((entry) => entry.id === id);
+                if (!item) return;
+
+                if (item.quantity > 1) {
+                    item.quantity -= 1;
+                    renderCart();
+                }
+            });
+
+            $(document).on('change', '.cart-qty', function () {
+                const id = Number($(this).data('id'));
+                const item = state.cart.find((entry) => entry.id === id);
+                if (!item) return;
+
+                let val = parseInt($(this).val(), 10);
+                if (isNaN(val) || val < 1) val = 1;
+                if (val > item.stock) {
+                    val = item.stock;
+                    showAlert('Jumlah melebihi stok tersedia.', 'error');
+                }
+                item.quantity = val;
                 renderCart();
             });
 

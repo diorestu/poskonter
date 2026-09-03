@@ -47,7 +47,7 @@
                 </form>
 
                 <div class="list-panel p-4">
-                    <div class="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">Pergerakan Stok Terakhir</div>
+                    <div class="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">5 Pergerakan Stok Terakhir</div>
                     <div id="stockMovementList" class="space-y-2"></div>
                 </div>
             </div>
@@ -277,7 +277,7 @@
             }
 
             function renderMovements(items) {
-                const movements = items || [];
+                const movements = (items || []).slice(0, 5);
                 $('#stockMovementList').html(movements.length ? movements.map((item) => {
                     const createdDate = item.created_at ? new Date(item.created_at).toLocaleString('id-ID') : '-';
                     const expiryDate = item.expiry_date ? `Expiry ${new Date(item.expiry_date).toLocaleDateString('id-ID')}` : 'Tanpa expiry';
