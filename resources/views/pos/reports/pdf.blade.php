@@ -2,415 +2,378 @@
 <html lang="id">
 <head>
     <meta charset="utf-8">
-    <title>Laporan Penjualan Per Kategori & Shift - Zeni POS</title>
+    <title>Rekapan Penjualan Harian - Zeni POS</title>
     <style>
         @page {
-            margin: 18px 22px;
+            margin: 14px 16px;
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 10px;
-            color: #1e293b;
-            line-height: 1.35;
+            font-size: 8px;
+            color: #0f172a;
+            line-height: 1.25;
             margin: 0;
             padding: 0;
         }
-        .header-table {
+        .header-box {
             width: 100%;
-            border-bottom: 2px solid #2563eb;
-            padding-bottom: 8px;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 4px;
+            position: relative;
         }
-        .logo-text {
-            font-size: 18px;
+        .header-title {
+            font-size: 13px;
             font-weight: bold;
-            color: #1d4ed8;
-            letter-spacing: -0.5px;
-        }
-        .subtitle {
-            font-size: 9.5px;
-            color: #64748b;
-        }
-        .report-title {
-            text-align: right;
-        }
-        .report-title h2 {
-            margin: 0;
-            font-size: 14px;
-            color: #0f172a;
             text-transform: uppercase;
-        }
-        .report-period {
-            font-size: 9.5px;
-            color: #475569;
-            margin-top: 2px;
-        }
-        .metrics-table {
-            width: 100%;
-            margin-bottom: 14px;
-        }
-        .metric-card {
-            background-color: #f8fafc;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            padding: 6px 8px;
+            letter-spacing: 0.5px;
             text-align: center;
         }
-        .metric-label {
-            font-size: 8.5px;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            color: #64748b;
-            margin-bottom: 3px;
-        }
-        .metric-value {
-            font-size: 11.5px;
+        .date-box {
+            border: 1px solid #0f172a;
+            padding: 2px 6px;
+            font-size: 8px;
             font-weight: bold;
-            color: #0f172a;
+            display: inline-block;
+            float: right;
+            margin-top: -16px;
         }
-        .metric-value.profit { color: #16a34a; }
-        .metric-value.expense { color: #dc2626; }
-        .metric-value.pagi { color: #d97706; }
-        .metric-value.sore { color: #4338ca; }
-        .metric-value.accent { color: #2563eb; }
-
-        .category-wrapper {
-            margin-bottom: 14px;
-            page-break-inside: avoid;
-        }
-        .category-header {
-            background-color: #0f172a;
-            color: #ffffff;
-            padding: 4px 8px;
-            font-size: 10.5px;
-            font-weight: bold;
-            border-radius: 4px 4px 0 0;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .split-table {
+        
+        table.main-layout {
             width: 100%;
             border-collapse: collapse;
         }
-        .split-col {
+        td.shift-column {
             width: 50%;
             vertical-align: top;
-            padding: 0;
         }
-        .split-col-left {
+        td.shift-column-left {
             padding-right: 4px;
         }
-        .split-col-right {
+        td.shift-column-right {
             padding-left: 4px;
         }
 
-        table.shift-table {
+        .section-header {
+            background-color: #f1f5f9;
+            border: 1px solid #0f172a;
+            font-weight: bold;
+            font-size: 8.5px;
+            text-transform: uppercase;
+            padding: 2px 4px;
+            text-align: center;
+        }
+
+        table.data-table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 5px;
         }
-        table.shift-table th {
-            font-size: 9px;
+        table.data-table th {
+            background-color: #f8fafc;
+            border: 1px solid #0f172a;
+            font-size: 7.5px;
             font-weight: bold;
             text-transform: uppercase;
-            padding: 4px 6px;
-            border: 1px solid #cbd5e1;
+            padding: 2px 3px;
             text-align: left;
         }
-        table.shift-table th.th-pagi {
-            background-color: #fef3c7;
-            color: #92400e;
-            border-color: #fcd34d;
-        }
-        table.shift-table th.th-sore {
-            background-color: #e0e7ff;
-            color: #3730a3;
-            border-color: #c7d2fe;
-        }
-        table.shift-table td {
-            padding: 4px 6px;
-            border: 1px solid #e2e8f0;
-            font-size: 9.5px;
-        }
-        table.shift-table tr:nth-child(even) td {
-            background-color: #fafbfc;
+        table.data-table td {
+            border: 1px solid #0f172a;
+            padding: 2px 3px;
+            font-size: 7.5px;
         }
         .text-right { text-align: right; }
         .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
 
-        .category-footer-bar {
-            background-color: #f1f5f9;
-            border: 1px solid #cbd5e1;
-            border-top: none;
-            padding: 4px 8px;
-            font-size: 9.5px;
+        .total-row td {
             font-weight: bold;
-            text-align: right;
-            border-radius: 0 0 4px 4px;
+            background-color: #f8fafc;
         }
 
-        table.general-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 12px;
+        .payment-box {
+            border: 1px solid #0f172a;
+            padding: 3px 5px;
+            margin-bottom: 5px;
+            background-color: #ffffff;
         }
-        table.general-table th {
-            background-color: #f1f5f9;
+        .payment-row {
+            margin-bottom: 1.5px;
+            font-size: 7.5px;
+        }
+
+        .notes-box {
+            border: 1px solid #0f172a;
+            min-height: 28px;
+            padding: 3px 4px;
+            margin-bottom: 5px;
+            font-size: 7.5px;
             color: #334155;
-            font-size: 9px;
-            font-weight: bold;
-            text-transform: uppercase;
-            padding: 5px 6px;
-            border: 1px solid #cbd5e1;
-            text-align: left;
         }
-        table.general-table td {
-            padding: 4px 6px;
-            border: 1px solid #e2e8f0;
-            font-size: 9.5px;
+
+        .summary-box {
+            border: 1px solid #0f172a;
+            padding: 3px 5px;
+            background-color: #f8fafc;
+            margin-bottom: 6px;
         }
-        .section-title {
-            font-size: 11px;
-            font-weight: bold;
-            color: #0f172a;
-            border-left: 3px solid #2563eb;
-            padding-left: 6px;
-            margin: 14px 0 6px 0;
-            text-transform: uppercase;
-        }
-        .badge {
-            display: inline-block;
-            padding: 1px 4px;
+        .summary-row {
+            margin-bottom: 2px;
             font-size: 8px;
-            border-radius: 3px;
-            font-weight: bold;
         }
-        .badge-warning { background-color: #fef3c7; color: #92400e; }
-        .badge-danger { background-color: #fee2e2; color: #991b1b; }
 
         .signature-table {
             width: 100%;
-            margin-top: 20px;
-            page-break-inside: avoid;
+            border-collapse: collapse;
+            margin-top: 6px;
         }
         .signature-box {
+            width: 33.33%;
+            border: 1px solid #0f172a;
             text-align: center;
-            width: 30%;
+            padding: 3px;
+            font-size: 7.5px;
         }
         .signature-line {
-            margin-top: 45px;
-            border-top: 1px solid #64748b;
+            margin-top: 25px;
             font-weight: bold;
         }
-        .footer-note {
-            margin-top: 15px;
-            padding-top: 8px;
-            border-top: 1px dashed #cbd5e1;
-            font-size: 8.5px;
-            color: #94a3b8;
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        .kpi-strip {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+        }
+        .kpi-strip td {
+            border: 1px solid #0f172a;
+            padding: 4px;
             text-align: center;
+            background-color: #f8fafc;
+        }
+        .kpi-title {
+            font-size: 7px;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .kpi-val {
+            font-size: 10px;
+            font-weight: bold;
+            color: #0f172a;
         }
     </style>
 </head>
 <body>
 
-    <!-- Kop Laporan -->
-    <table class="header-table">
+    <!-- ==================== HALAMAN 1: REKAPAN 2 KOLOM (PAGI & SORE) ==================== -->
+    <div class="header-box">
+        <div class="header-title">Rekapan Penjualan Harian</div>
+        <div class="date-box">tgl: {{ $reportData['period']['formatted'] }}</div>
+    </div>
+
+    @php
+        $pagi = $reportData['shifts']['pagi'] ?? [];
+        $sore = $reportData['shifts']['sore'] ?? [];
+        $expenses = $reportData['expenses'] ?? [];
+        $summary = $reportData['summary'] ?? [];
+        $details = $reportData['details'] ?? [];
+    @endphp
+
+    <table class="main-layout">
         <tr>
-            <td style="vertical-align: middle;">
-                <div class="logo-text">ZENI POS</div>
-                <div class="subtitle">Laporan Penjualan Shift Pagi & Shift Sore Per Kategori Produk</div>
-            </td>
-            <td class="report-title" style="vertical-align: middle;">
-                <h2>Rekapitulasi Shift & Penjualan</h2>
-                <div class="report-period">
-                    Periode: <strong>{{ \Carbon\Carbon::parse($startDate)->translatedFormat('d M Y') }}</strong> s/d <strong>{{ \Carbon\Carbon::parse($endDate)->translatedFormat('d M Y') }}</strong>
+            <!-- ==================== KOLOM SHIFT PAGI ==================== -->
+            <td class="shift-column shift-column-left">
+                <div class="section-header">Penjualan Pagi</div>
+
+                <!-- 1. Voucher & Pulsa Elektrik Table -->
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th width="65%">Produk</th>
+                            <th width="35%" class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($pagi['voucher_pulsa'] ?? [] as $vp)
+                            <tr>
+                                <td style="{{ $vp['total'] > 0 ? 'font-weight: bold;' : 'color: #64748b;' }}">{{ $vp['name'] }}</td>
+                                <td class="text-right" style="{{ $vp['total'] > 0 ? 'font-weight: bold;' : 'color: #94a3b8;' }}">
+                                    {{ $vp['total'] > 0 ? number_format($vp['total'], 0, ',', '.') : '-' }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="text-center" style="color: #64748b;">-</td>
+                            </tr>
+                        @endforelse
+                        <tr class="total-row">
+                            <td>Total Penjualan</td>
+                            <td class="text-right">Rp {{ number_format($pagi['total_voucher_pulsa'] ?? 0, 0, ',', '.') }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- 2. Penjualan Acesories (Barang Fisik) -->
+                <div class="section-header" style="border-top: none;">Penjualan Acesories</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th width="50%">Produk</th>
+                            <th width="22%" class="text-right">Harga</th>
+                            <th width="28%" class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($pagi['accessories'] ?? [] as $acc)
+                            <tr>
+                                <td>{{ $acc['name'] }} (x{{ $acc['qty'] }})</td>
+                                <td class="text-right">{{ number_format($acc['price'], 0, ',', '.') }}</td>
+                                <td class="text-right font-bold">{{ number_format($acc['total'], 0, ',', '.') }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="text-center" style="color: #64748b; padding: 4px;">- Tidak ada penjualan acesories -</td>
+                            </tr>
+                        @endforelse
+                        <tr class="total-row">
+                            <td colspan="2">Total Acesories</td>
+                            <td class="text-right">Rp {{ number_format($pagi['total_accessories'] ?? 0, 0, ',', '.') }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- 3. Breakdown Pembayaran Non-Tunai -->
+                <div class="payment-box">
+                    <div class="payment-row">trf via wa: <strong>Rp {{ number_format($pagi['payments']['transfer'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="payment-row">trf bank: <strong>Rp 0</strong></div>
+                    <div class="payment-row">TRF QRIS: <strong>Rp {{ number_format($pagi['payments']['qris'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="payment-row">E-MONEY: <strong>Rp {{ number_format($pagi['payments']['debit'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="payment-row" style="margin-top: 2px; border-top: 1px dashed #cbd5e1; padding-top: 2px;">
+                        Tunai (Cash): <strong>Rp {{ number_format($pagi['total_cash'] ?? 0, 0, ',', '.') }}</strong>
+                    </div>
                 </div>
-                <div class="report-period">Dicetak: {{ now()->translatedFormat('d M Y, H:i') }} WIB</div>
+
+                <!-- 4. Pengeluaran Shift -->
+                <div class="payment-box" style="margin-top: -2px;">
+                    <div class="payment-row font-bold">Pengeluaran: Rp {{ number_format(($expenses['total'] ?? 0) / 2, 0, ',', '.') }}</div>
+                </div>
+                <div class="notes-box">
+                    <strong>Catatan / Rincian:</strong>
+                    @if (!empty($expenses['items']))
+                        @foreach ($expenses['items'] as $exp)
+                            <div>- {{ $exp['description'] }}: Rp {{ number_format($exp['amount'], 0, ',', '.') }}</div>
+                        @endforeach
+                    @else
+                        <div>-</div>
+                    @endif
+                </div>
+
+                <!-- 5. Rekapitulasi Akhir Shift Pagi -->
+                <div class="summary-box">
+                    <div class="summary-row">total penjualan pagi: <strong style="float: right;">Rp {{ number_format($pagi['total_sales'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="summary-row">total uang + nontunai: <strong style="float: right;">Rp {{ number_format(($pagi['total_cash'] ?? 0) + ($pagi['total_non_cash'] ?? 0), 0, ',', '.') }}</strong></div>
+                    <div class="summary-row font-bold" style="border-top: 1px solid #0f172a; padding-top: 2px; margin-top: 2px;">
+                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format(max(0, ($pagi['total_cash'] ?? 0) - (($expenses['total'] ?? 0) / 2)), 0, ',', '.') }}</strong>
+                    </div>
+                </div>
+            </td>
+
+            <!-- ==================== KOLOM SHIFT SORE ==================== -->
+            <td class="shift-column shift-column-right">
+                <div class="section-header">Penjualan Sore</div>
+
+                <!-- 1. Voucher & Pulsa Elektrik Table -->
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th width="65%">Produk</th>
+                            <th width="35%" class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($sore['voucher_pulsa'] ?? [] as $vp)
+                            <tr>
+                                <td style="{{ $vp['total'] > 0 ? 'font-weight: bold;' : 'color: #64748b;' }}">{{ $vp['name'] }}</td>
+                                <td class="text-right" style="{{ $vp['total'] > 0 ? 'font-weight: bold;' : 'color: #94a3b8;' }}">
+                                    {{ $vp['total'] > 0 ? number_format($vp['total'], 0, ',', '.') : '-' }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="text-center" style="color: #64748b;">-</td>
+                            </tr>
+                        @endforelse
+                        <tr class="total-row">
+                            <td>Total Penjualan</td>
+                            <td class="text-right">Rp {{ number_format($sore['total_voucher_pulsa'] ?? 0, 0, ',', '.') }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- 2. Penjualan Acesories (Barang Fisik) -->
+                <div class="section-header" style="border-top: none;">Penjualan Acesories</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th width="50%">Produk</th>
+                            <th width="22%" class="text-right">Harga</th>
+                            <th width="28%" class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($sore['accessories'] ?? [] as $acc)
+                            <tr>
+                                <td>{{ $acc['name'] }} (x{{ $acc['qty'] }})</td>
+                                <td class="text-right">{{ number_format($acc['price'], 0, ',', '.') }}</td>
+                                <td class="text-right font-bold">{{ number_format($acc['total'], 0, ',', '.') }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="text-center" style="color: #64748b; padding: 4px;">- Tidak ada penjualan acesories -</td>
+                            </tr>
+                        @endforelse
+                        <tr class="total-row">
+                            <td colspan="2">Total Acesories</td>
+                            <td class="text-right">Rp {{ number_format($sore['total_accessories'] ?? 0, 0, ',', '.') }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- 3. Breakdown Pembayaran Non-Tunai -->
+                <div class="payment-box">
+                    <div class="payment-row">trf via wa: <strong>Rp {{ number_format($sore['payments']['transfer'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="payment-row">trf bank: <strong>Rp 0</strong></div>
+                    <div class="payment-row">TRF QRIS: <strong>Rp {{ number_format($sore['payments']['qris'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="payment-row">E-MONEY: <strong>Rp {{ number_format($sore['payments']['debit'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="payment-row" style="margin-top: 2px; border-top: 1px dashed #cbd5e1; padding-top: 2px;">
+                        Tunai (Cash): <strong>Rp {{ number_format($sore['total_cash'] ?? 0, 0, ',', '.') }}</strong>
+                    </div>
+                </div>
+
+                <!-- 4. Pengeluaran Shift -->
+                <div class="payment-box" style="margin-top: -2px;">
+                    <div class="payment-row font-bold">Pengeluaran: Rp {{ number_format(($expenses['total'] ?? 0) / 2, 0, ',', '.') }}</div>
+                </div>
+                <div class="notes-box">
+                    <strong>Catatan / Rincian:</strong>
+                    <div>-</div>
+                </div>
+
+                <!-- 5. Rekapitulasi Akhir Shift Sore -->
+                <div class="summary-box">
+                    <div class="summary-row">total penjualan sore: <strong style="float: right;">Rp {{ number_format($sore['total_sales'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="summary-row">total uang + nontunai: <strong style="float: right;">Rp {{ number_format(($sore['total_cash'] ?? 0) + ($sore['total_non_cash'] ?? 0), 0, ',', '.') }}</strong></div>
+                    <div class="summary-row font-bold" style="border-top: 1px solid #0f172a; padding-top: 2px; margin-top: 2px;">
+                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format(max(0, ($sore['total_cash'] ?? 0) - (($expenses['total'] ?? 0) / 2)), 0, ',', '.') }}</strong>
+                    </div>
+                </div>
             </td>
         </tr>
     </table>
-
-    <!-- Ringkasan Shift Settlement (Pagi vs Sore) -->
-    <table class="metrics-table" cellpadding="0" cellspacing="3">
-        <tr>
-            <td class="metric-card" width="20%">
-                <div class="metric-label">Shift Pagi (Omset)</div>
-                <div class="metric-value pagi">Rp {{ number_format($shiftSummary['pagi']['total'], 0, ',', '.') }}</div>
-                <div style="font-size: 8px; color: #64748b; margin-top: 2px;">{{ $shiftSummary['pagi']['transactions'] }} Trx (Tunai: Rp {{ number_format($shiftSummary['pagi']['cash'], 0, ',', '.') }})</div>
-            </td>
-            <td class="metric-card" width="20%">
-                <div class="metric-label">Shift Sore (Omset)</div>
-                <div class="metric-value sore">Rp {{ number_format($shiftSummary['sore']['total'], 0, ',', '.') }}</div>
-                <div style="font-size: 8px; color: #64748b; margin-top: 2px;">{{ $shiftSummary['sore']['transactions'] }} Trx (Tunai: Rp {{ number_format($shiftSummary['sore']['cash'], 0, ',', '.') }})</div>
-            </td>
-            <td class="metric-card" width="20%">
-                <div class="metric-label">Total Omset Toko</div>
-                <div class="metric-value accent">Rp {{ number_format($totalRevenue, 0, ',', '.') }}</div>
-                <div style="font-size: 8px; color: #64748b; margin-top: 2px;">POS Fisik: Rp {{ number_format($totalPosSales, 0, ',', '.') }}</div>
-            </td>
-            <td class="metric-card" width="20%">
-                <div class="metric-label">Total Pengeluaran</div>
-                <div class="metric-value expense">Rp {{ number_format($totalExpenses, 0, ',', '.') }}</div>
-                <div style="font-size: 8px; color: #64748b; margin-top: 2px;">{{ $expenses->count() }} Pengeluaran</div>
-            </td>
-            <td class="metric-card" width="20%">
-                <div class="metric-label">Estimasi Laba Bersih</div>
-                <div class="metric-value profit">Rp {{ number_format($netProfit, 0, ',', '.') }}</div>
-                <div style="font-size: 8px; color: #64748b; margin-top: 2px;">Setelah HPP & Beban</div>
-            </td>
-        </tr>
-    </table>
-
-    <!-- Tabel Penjualan Per Kategori (2 Kolom: Kiri Pagi, Kanan Sore) -->
-    <div class="section-title">Penjualan Per Kategori (Shift Pagi & Shift Sore)</div>
-
-    @forelse ($categoriesMap as $categoryName => $catData)
-        @php
-            $pagiItems = array_values($catData['pagi']['items']);
-            $soreItems = array_values($catData['sore']['items']);
-            $maxRows = max(count($pagiItems), count($soreItems));
-            $catTotal = $catData['pagi']['total_amount'] + $catData['sore']['total_amount'];
-            $catQty = $catData['pagi']['total_qty'] + $catData['sore']['total_qty'];
-        @endphp
-
-        <div class="category-wrapper">
-            <div class="category-header">
-                KATEGORI: {{ strtoupper($categoryName) }}
-                <span style="float: right; font-size: 9.5px;">Total Kategori: {{ $catQty }} item (Rp {{ number_format($catTotal, 0, ',', '.') }})</span>
-            </div>
-
-            <table class="split-table">
-                <tr>
-                    <!-- Kolom Kiri: SHIFT PAGI -->
-                    <td class="split-col split-col-left">
-                        <table class="shift-table">
-                            <thead>
-                                <tr>
-                                    <th colspan="3" class="th-pagi" style="text-align: center;">☀ SHIFT PAGI</th>
-                                </tr>
-                                <tr>
-                                    <th width="60%">Nama Produk</th>
-                                    <th width="15%" class="text-center">Qty</th>
-                                    <th width="25%" class="text-right">Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (count($pagiItems) > 0)
-                                    @for ($i = 0; $i < $maxRows; $i++)
-                                        @if (isset($pagiItems[$i]))
-                                            <tr>
-                                                <td>{{ $pagiItems[$i]['name'] }}</td>
-                                                <td class="text-center">{{ $pagiItems[$i]['qty'] }}</td>
-                                                <td class="text-right">Rp {{ number_format($pagiItems[$i]['total'], 0, ',', '.') }}</td>
-                                            </tr>
-                                        @else
-                                            <tr>
-                                                <td style="color: transparent;">-</td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                        @endif
-                                    @endfor
-                                @else
-                                    <tr>
-                                        <td colspan="3" class="text-center" style="color: #94a3b8; padding: 10px;">Tidak ada penjualan pagi</td>
-                                    </tr>
-                                @endif
-                            </tbody>
-                            <tfoot>
-                                <tr style="background-color: #fffbeb; font-weight: bold;">
-                                    <td>Total Shift Pagi</td>
-                                    <td class="text-center">{{ $catData['pagi']['total_qty'] }}</td>
-                                    <td class="text-right" style="color: #b45309;">Rp {{ number_format($catData['pagi']['total_amount'], 0, ',', '.') }}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </td>
-
-                    <!-- Kolom Kanan: SHIFT SORE -->
-                    <td class="split-col split-col-right">
-                        <table class="shift-table">
-                            <thead>
-                                <tr>
-                                    <th colspan="3" class="th-sore" style="text-align: center;">🌙 SHIFT SORE</th>
-                                </tr>
-                                <tr>
-                                    <th width="60%">Nama Produk</th>
-                                    <th width="15%" class="text-center">Qty</th>
-                                    <th width="25%" class="text-right">Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (count($soreItems) > 0)
-                                    @for ($i = 0; $i < $maxRows; $i++)
-                                        @if (isset($soreItems[$i]))
-                                            <tr>
-                                                <td>{{ $soreItems[$i]['name'] }}</td>
-                                                <td class="text-center">{{ $soreItems[$i]['qty'] }}</td>
-                                                <td class="text-right">Rp {{ number_format($soreItems[$i]['total'], 0, ',', '.') }}</td>
-                                            </tr>
-                                        @else
-                                            <tr>
-                                                <td style="color: transparent;">-</td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                        @endif
-                                    @endfor
-                                @else
-                                    <tr>
-                                        <td colspan="3" class="text-center" style="color: #94a3b8; padding: 10px;">Tidak ada penjualan sore</td>
-                                    </tr>
-                                @endif
-                            </tbody>
-                            <tfoot>
-                                <tr style="background-color: #eef2ff; font-weight: bold;">
-                                    <td>Total Shift Sore</td>
-                                    <td class="text-center">{{ $catData['sore']['total_qty'] }}</td>
-                                    <td class="text-right" style="color: #4338ca;">Rp {{ number_format($catData['sore']['total_amount'], 0, ',', '.') }}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </div>
-    @empty
-        <div style="border: 1px dashed #cbd5e1; padding: 15px; text-align: center; color: #64748b; margin-bottom: 15px;">
-            Tidak ada data transaksi penjualan pada periode yang dipilih.
-        </div>
-    @endforelse
-
-    <!-- Pengeluaran Operasional -->
-    @if ($expenses->count())
-    <div class="section-title">Pengeluaran Operasional</div>
-    <table class="general-table">
-        <thead>
-            <tr>
-                <th width="15%">Tanggal</th>
-                <th width="20%">Kategori</th>
-                <th width="45%">Deskripsi / Keperluan</th>
-                <th width="20%" class="text-right">Nominal</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($expenses as $expense)
-                <tr>
-                    <td>{{ \Carbon\Carbon::parse($expense->expense_date)->translatedFormat('d/m/Y') }}</td>
-                    <td><span class="badge badge-warning">{{ $expense->category }}</span></td>
-                    <td>{{ $expense->description }} {{ $expense->notes ? '('.$expense->notes.')' : '' }}</td>
-                    <td class="text-right expense" style="color: #dc2626;"><strong>Rp {{ number_format($expense->amount, 0, ',', '.') }}</strong></td>
-                </tr>
-            @endforeach
-        </tbody>
-        <tfoot>
-            <tr style="background-color: #f8fafc; font-weight: bold;">
-                <td colspan="3" class="text-right">Total Pengeluaran:</td>
-                <td class="text-right" style="color: #dc2626;">Rp {{ number_format($totalExpenses, 0, ',', '.') }}</td>
-            </tr>
-        </tfoot>
-    </table>
-    @endif
 
     <!-- Tanda Tangan Serah Terima Kasir Shift -->
     <table class="signature-table">
@@ -424,15 +387,148 @@
                 <div class="signature-line">( ........................................ )</div>
             </td>
             <td class="signature-box">
-                <div>Penanggung Jawab / Admin,</div>
-                <div class="signature-line">{{ auth()->user()?->name ?? 'Admin Zeni POS' }}</div>
+                <div>Penanggung Jawab / Owner,</div>
+                <div class="signature-line">( ........................................ )</div>
             </td>
         </tr>
     </table>
 
-    <div class="footer-note">
-        Dokumen Laporan Kasir & Rekap Shift Zeni POS &copy; {{ date('Y') }}. Tercatat sah dalam database sistem.
+    <!-- ==================== HALAMAN 2: DETAIL TRANSAKSI PENJUALAN ==================== -->
+    <div class="page-break"></div>
+
+    <div class="header-box">
+        <div class="header-title">Detail Hasil Transaksi Penjualan</div>
+        <div class="date-box">Periode: {{ $reportData['period']['formatted'] }}</div>
     </div>
+
+    <!-- Ringkasan KPI -->
+    <table class="kpi-strip">
+        <tr>
+            <td width="25%">
+                <div class="kpi-title">Total Penjualan</div>
+                <div class="kpi-val" style="color: #2563eb;">Rp {{ number_format($summary['grand_total_sales'] ?? 0, 0, ',', '.') }}</div>
+            </td>
+            <td width="25%">
+                <div class="kpi-title">Voucher ({{ $summary['total_voucher_count'] ?? 0 }} Trx)</div>
+                <div class="kpi-val" style="color: #7e22ce;">Rp {{ number_format($summary['total_voucher_sales'] ?? 0, 0, ',', '.') }}</div>
+            </td>
+            <td width="25%">
+                <div class="kpi-title">Pulsa Elektrik ({{ $summary['total_pulsa_count'] ?? 0 }} Trx)</div>
+                <div class="kpi-val" style="color: #0284c7;">Rp {{ number_format($summary['total_pulsa_sales'] ?? 0, 0, ',', '.') }}</div>
+            </td>
+            <td width="25%">
+                <div class="kpi-title">Acesories ({{ $summary['total_accessories_count'] ?? 0 }} Trx)</div>
+                <div class="kpi-val" style="color: #0d9488;">Rp {{ number_format($summary['total_accessories_sales'] ?? 0, 0, ',', '.') }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- 1. Detail Transaksi Voucher -->
+    <div class="section-header" style="text-align: left; background-color: #f3e8ff; border-color: #a855f7;">
+        1. Rincian Penjualan Voucher (Total: Rp {{ number_format($summary['total_voucher_sales'] ?? 0, 0, ',', '.') }})
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="18%">Ref / Invoice</th>
+                <th width="15%">Waktu</th>
+                <th width="8%">Shift</th>
+                <th width="24%">Produk Voucher</th>
+                <th width="15%">Serial Number (SN)</th>
+                <th width="10%">Metode</th>
+                <th width="10%" class="text-right">Harga</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($details['vouchers'] ?? [] as $v)
+                <tr>
+                    <td class="font-bold">{{ $v['reference_number'] }}</td>
+                    <td>{{ $v['date'] }}</td>
+                    <td class="text-center">{{ strtoupper($v['shift']) }}</td>
+                    <td>{{ $v['product_name'] }} {{ $v['variant'] && $v['variant'] !== '-' ? '(' . $v['variant'] . ')' : '' }}</td>
+                    <td>{{ $v['serial_number'] }}</td>
+                    <td class="text-center">{{ strtoupper($v['payment_method']) }}</td>
+                    <td class="text-right font-bold">{{ number_format($v['price'], 0, ',', '.') }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="7" class="text-center" style="color: #64748b; padding: 4px;">- Tidak ada transaksi voucher -</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <!-- 2. Detail Transaksi Pulsa Elektrik -->
+    <div class="section-header" style="text-align: left; background-color: #e0f2fe; border-color: #0284c7; margin-top: 6px;">
+        2. Rincian Penjualan Pulsa Elektrik (Total: Rp {{ number_format($summary['total_pulsa_sales'] ?? 0, 0, ',', '.') }})
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="18%">Ref Transaksi</th>
+                <th width="15%">Waktu</th>
+                <th width="8%">Shift</th>
+                <th width="12%">Provider</th>
+                <th width="16%">Produk</th>
+                <th width="14%">No Tujuan</th>
+                <th width="8%">Metode</th>
+                <th width="9%" class="text-right">Harga</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($details['pulsa'] ?? [] as $p)
+                <tr>
+                    <td class="font-bold">{{ $p['reference_number'] }}</td>
+                    <td>{{ $p['date'] }}</td>
+                    <td class="text-center">{{ strtoupper($p['shift']) }}</td>
+                    <td>{{ $p['provider'] }}</td>
+                    <td>{{ $p['product_name'] }}</td>
+                    <td>{{ $p['target_number'] }}</td>
+                    <td class="text-center">{{ strtoupper($p['payment_method']) }}</td>
+                    <td class="text-right font-bold">{{ number_format($p['price'], 0, ',', '.') }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="8" class="text-center" style="color: #64748b; padding: 4px;">- Tidak ada transaksi pulsa elektrik -</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <!-- 3. Detail Transaksi Acesories -->
+    <div class="section-header" style="text-align: left; background-color: #ccfbf1; border-color: #0d9488; margin-top: 6px;">
+        3. Rincian Penjualan Acesories / Barang Fisik (Total: Rp {{ number_format($summary['total_accessories_sales'] ?? 0, 0, ',', '.') }})
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="18%">Invoice</th>
+                <th width="15%">Waktu</th>
+                <th width="8%">Shift</th>
+                <th width="24%">Produk & Varian</th>
+                <th width="15%">Serial Number (SN)</th>
+                <th width="6%" class="text-center">Qty</th>
+                <th width="14%" class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($details['accessories'] ?? [] as $a)
+                <tr>
+                    <td class="font-bold">{{ $a['invoice_number'] }}</td>
+                    <td>{{ $a['date'] }}</td>
+                    <td class="text-center">{{ strtoupper($a['shift']) }}</td>
+                    <td>{{ $a['product_name'] }} {{ $a['variant'] && $a['variant'] !== '-' ? '(' . $a['variant'] . ')' : '' }}</td>
+                    <td>{{ $a['serial_number'] }}</td>
+                    <td class="text-center">{{ $a['quantity'] }}</td>
+                    <td class="text-right font-bold">{{ number_format($a['subtotal'], 0, ',', '.') }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="7" class="text-center" style="color: #64748b; padding: 4px;">- Tidak ada transaksi acesories -</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
 
 </body>
 </html>

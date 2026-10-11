@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/database/import', [DatabaseTransferController::class, 'import'])->name('database.import');
 
         Route::prefix('ajax')->name('ajax.')->group(function (): void {
+            Route::get('/report/data', [PosController::class, 'reportData'])->name('report.data');
             Route::post('/products', [PosController::class, 'storeProduct'])->name('products.store');
             Route::put('/products/{product}', [PosController::class, 'updateProduct'])->name('products.update');
             Route::post('/providers', [PulsaController::class, 'storeProvider'])->name('providers.store');

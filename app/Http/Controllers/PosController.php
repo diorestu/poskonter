@@ -44,165 +44,436 @@ class PosController extends Controller
         return view('pos.pages.report');
     }
 
-    public function exportPdf(Request $request)
+    public function reportData(Request $request): JsonResponse
     {
-        $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->toDateString());
+        $startDate = $request->query('start_date', Carbon::today()->toDateString());
         $endDate = $request->query('end_date', Carbon::today()->toDateString());
 
-        $sales = Sale::query()
-            ->with(['items.product'])
-            ->whereDate('sale_date', '>=', $startDate)
-            ->whereDate('sale_date', '<=', $endDate)
-            ->orderBy('sale_date', 'desc')
-            ->get();
-        $totalPosSales = (float) $sales->sum('total');
+        return response()->json($this->getReportData($startDate, $endDate));
+    }
 
-        $pulsaSales = PulsaSale::query()
-            ->with(['product'])
-            ->where('status', 'success')
-            ->whereDate('created_at', '>=', $startDate)
-            ->whereDate('created_at', '<=', $endDate)
-            ->latest()
-            ->get();
-        $totalPulsaSales = (float) $pulsaSales->sum('selling_price');
-        $totalPulsaCost = (float) $pulsaSales->sum('cost_price');
+    public function exportPdf(Request $request)
+    {
+        $startDate = $request->query('start_date', Carbon::today()->toDateString());
+        $endDate = $request->query('end_date', Carbon::today()->toDateString());
 
-        $expenses = Expense::query()
-            ->whereDate('expense_date', '>=', $startDate)
-            ->whereDate('expense_date', '<=', $endDate)
-            ->orderBy('expense_date', 'desc')
-            ->get();
-        $totalExpenses = (float) $expenses->sum('amount');
+        $reportData = $this->getReportData($startDate, $endDate);
 
-        $totalRevenue = $totalPosSales + $totalPulsaSales;
+        $pdf = Pdf::loadView('pos.reports.pdf', compact('reportData', 'startDate', 'endDate'))
+            ->setPaper('a4', 'portrait');
 
-        // Estimated Cost of Goods Sold for POS items
-        $posCost = 0;
-        foreach ($sales as $sale) {
-            foreach ($sale->items as $item) {
-                $posCost += (float) ($item->cost_price * $item->quantity);
-            }
-        }
-
-        $grossProfit = ($totalPosSales - $posCost) + ($totalPulsaSales - $totalPulsaCost);
-        $netProfit = $grossProfit - $totalExpenses;
-
-        $lowStockProducts = Product::query()
-            ->where('product_type', 'regular')
-            ->whereColumn('stock', '<=', 'minimum_stock')
-            ->orderBy('stock', 'asc')
-            ->get();
-
-        // Process Category & Shift Sales Aggregation (2 Kolom: Shift Pagi vs Shift Sore)
-        $categoriesMap = [];
-
-        // 1. Process Physical Sales Items
-        foreach ($sales as $sale) {
-            $shift = strtolower($sale->shift ?: 'pagi');
-            if (! in_array($shift, ['pagi', 'sore'])) {
-                $shift = 'pagi';
-            }
-
-            foreach ($sale->items as $item) {
-                $categoryName = trim($item->product?->category ?: 'Aksesoris & Lainnya');
-                if (! isset($categoriesMap[$categoryName])) {
-                    $categoriesMap[$categoryName] = [
-                        'pagi' => ['items' => [], 'total_qty' => 0, 'total_amount' => 0],
-                        'sore' => ['items' => [], 'total_qty' => 0, 'total_amount' => 0],
-                    ];
-                }
-
-                $productKey = $item->product_id ? 'prod_'.$item->product_id : 'name_'.md5($item->product_name);
-                if (! isset($categoriesMap[$categoryName][$shift]['items'][$productKey])) {
-                    $categoriesMap[$categoryName][$shift]['items'][$productKey] = [
-                        'name' => $item->product_name ?: ($item->product?->name ?? 'Item'),
-                        'qty' => 0,
-                        'price' => (float) $item->unit_price,
-                        'total' => 0,
-                    ];
-                }
-
-                $categoriesMap[$categoryName][$shift]['items'][$productKey]['qty'] += (int) $item->quantity;
-                $categoriesMap[$categoryName][$shift]['items'][$productKey]['total'] += (float) $item->subtotal;
-                $categoriesMap[$categoryName][$shift]['total_qty'] += (int) $item->quantity;
-                $categoriesMap[$categoryName][$shift]['total_amount'] += (float) $item->subtotal;
-            }
-        }
-
-        // 2. Process Pulsa & Voucher Sales
-        foreach ($pulsaSales as $pSale) {
-            $shift = strtolower($pSale->shift ?: 'pagi');
-            if (! in_array($shift, ['pagi', 'sore'])) {
-                $shift = 'pagi';
-            }
-
-            $categoryName = trim($pSale->product?->category ?: ($pSale->product?->product_type === 'pulsa' ? 'Pulsa Elektrik' : 'Voucher'));
-            if (! isset($categoriesMap[$categoryName])) {
-                $categoriesMap[$categoryName] = [
-                    'pagi' => ['items' => [], 'total_qty' => 0, 'total_amount' => 0],
-                    'sore' => ['items' => [], 'total_qty' => 0, 'total_amount' => 0],
-                ];
-            }
-
-            $productKey = 'pulsa_'.$pSale->product_id.'_'.md5($pSale->product?->name ?? 'p');
-            if (! isset($categoriesMap[$categoryName][$shift]['items'][$productKey])) {
-                $categoriesMap[$categoryName][$shift]['items'][$productKey] = [
-                    'name' => $pSale->product?->name ?: 'Pulsa/Voucher',
-                    'qty' => 0,
-                    'price' => (float) $pSale->selling_price,
-                    'total' => 0,
-                ];
-            }
-
-            $categoriesMap[$categoryName][$shift]['items'][$productKey]['qty'] += 1;
-            $categoriesMap[$categoryName][$shift]['items'][$productKey]['total'] += (float) $pSale->selling_price;
-            $categoriesMap[$categoryName][$shift]['total_qty'] += 1;
-            $categoriesMap[$categoryName][$shift]['total_amount'] += (float) $pSale->selling_price;
-        }
-
-        // Shift Summary (Pagi vs Sore)
-        $shiftSummary = [
-            'pagi' => [
-                'pos_sales' => (float) $sales->where('shift', 'pagi')->sum('total'),
-                'pulsa_sales' => (float) $pulsaSales->where('shift', 'pagi')->sum('selling_price'),
-                'cash' => (float) $sales->where('shift', 'pagi')->where('payment_method', 'cash')->sum('total') + (float) $pulsaSales->where('shift', 'pagi')->where('payment_method', 'cash')->sum('selling_price'),
-                'non_cash' => (float) $sales->where('shift', 'pagi')->where('payment_method', '!=', 'cash')->sum('total') + (float) $pulsaSales->where('shift', 'pagi')->where('payment_method', '!=', 'cash')->sum('selling_price'),
-                'transactions' => $sales->where('shift', 'pagi')->count() + $pulsaSales->where('shift', 'pagi')->count(),
-            ],
-            'sore' => [
-                'pos_sales' => (float) $sales->where('shift', 'sore')->sum('total'),
-                'pulsa_sales' => (float) $pulsaSales->where('shift', 'sore')->sum('selling_price'),
-                'cash' => (float) $sales->where('shift', 'sore')->where('payment_method', 'cash')->sum('total') + (float) $pulsaSales->where('shift', 'sore')->where('payment_method', 'cash')->sum('selling_price'),
-                'non_cash' => (float) $sales->where('shift', 'sore')->where('payment_method', '!=', 'cash')->sum('total') + (float) $pulsaSales->where('shift', 'sore')->where('payment_method', '!=', 'cash')->sum('selling_price'),
-                'transactions' => $sales->where('shift', 'sore')->count() + $pulsaSales->where('shift', 'sore')->count(),
-            ],
-        ];
-        $shiftSummary['pagi']['total'] = $shiftSummary['pagi']['pos_sales'] + $shiftSummary['pagi']['pulsa_sales'];
-        $shiftSummary['sore']['total'] = $shiftSummary['sore']['pos_sales'] + $shiftSummary['sore']['pulsa_sales'];
-
-        $pdf = Pdf::loadView('pos.reports.pdf', compact(
-            'startDate',
-            'endDate',
-            'categoriesMap',
-            'shiftSummary',
-            'sales',
-            'pulsaSales',
-            'expenses',
-            'lowStockProducts',
-            'totalPosSales',
-            'totalPulsaSales',
-            'totalRevenue',
-            'totalExpenses',
-            'netProfit'
-        ))->setPaper('a4', 'portrait');
-
-        $fileName = 'Laporan-ZeniPOS-' . Carbon::parse($startDate)->format('Ymd') . '-' . Carbon::parse($endDate)->format('Ymd') . '.pdf';
+        $fileName = 'Rekapan-Penjualan-Harian-' . Carbon::parse($startDate)->format('Ymd') . '-' . Carbon::parse($endDate)->format('Ymd') . '.pdf';
 
         if ($request->query('view') === 'preview') {
             return $pdf->stream($fileName);
         }
 
         return $pdf->download($fileName);
+    }
+
+    public function getReportData(string $startDate, string $endDate): array
+    {
+        $sales = Sale::query()
+            ->with(['items.product'])
+            ->whereDate('sale_date', '>=', $startDate)
+            ->whereDate('sale_date', '<=', $endDate)
+            ->orderBy('sale_date', 'asc')
+            ->get();
+
+        $pulsaSales = PulsaSale::query()
+            ->with(['product.provider', 'wallet'])
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('sale_date', '>=', $startDate)
+            ->whereDate('sale_date', '<=', $endDate)
+            ->orderBy('sale_date', 'asc')
+            ->get();
+
+        $expenses = Expense::query()
+            ->whereDate('expense_date', '>=', $startDate)
+            ->whereDate('expense_date', '<=', $endDate)
+            ->orderBy('expense_date', 'asc')
+            ->get();
+
+        // 14 Standard Predefined Voucher & Pulsa Categories (from physical paper report)
+        $standardCategories = [
+            'digipost',
+            'rita/voucher tree',
+            'sidompul xl',
+            'voucher/sisimple indosat',
+            'voucher telkomsel',
+            'voucher xl',
+            'voucher smartfren',
+            'voucher/perdana axis',
+            'VOUCHER BYU',
+            'perdana ALL OPERATOR',
+            'mitra shopee',
+            'propana',
+            'E-money',
+            'payfazz',
+        ];
+
+        $shifts = ['pagi' => 'Shift Pagi', 'sore' => 'Shift Sore'];
+        $shiftData = [];
+
+        foreach ($shifts as $shiftKey => $shiftLabel) {
+            $shiftSales = $sales->filter(fn ($s) => strtolower($s->shift ?: 'pagi') === $shiftKey);
+            $shiftPulsa = $pulsaSales->filter(fn ($p) => strtolower($p->shift ?: 'pagi') === $shiftKey);
+
+            // 1. Voucher & Pulsa Elektrik Items (Initialized with standard 14 paper rows)
+            $voucherPulsaGroups = [];
+            foreach ($standardCategories as $catName) {
+                $voucherPulsaGroups[$catName] = [
+                    'name' => $catName,
+                    'qty' => 0,
+                    'total' => 0.0,
+                ];
+            }
+
+            // From PulsaSale
+            foreach ($shiftPulsa as $ps) {
+                $groupName = $this->resolveVoucherPulsaGroupName(
+                    $ps->wallet?->name,
+                    $ps->product?->provider?->name,
+                    $ps->product?->category,
+                    $ps->product?->name
+                );
+
+                if (! isset($voucherPulsaGroups[$groupName])) {
+                    $voucherPulsaGroups[$groupName] = [
+                        'name' => $groupName,
+                        'qty' => 0,
+                        'total' => 0.0,
+                    ];
+                }
+                $voucherPulsaGroups[$groupName]['qty'] += 1;
+                $voucherPulsaGroups[$groupName]['total'] += (float) ($ps->price ?? 0);
+            }
+
+            // From POS Sales (Vouchers / Perdana)
+            foreach ($shiftSales as $s) {
+                foreach ($s->items as $item) {
+                    if ($this->isVoucher($item->product)) {
+                        $groupName = $this->resolveVoucherPulsaGroupName(
+                            null,
+                            $item->product?->provider?->name,
+                            $item->product?->category,
+                            $item->product?->name
+                        );
+
+                        if (! isset($voucherPulsaGroups[$groupName])) {
+                            $voucherPulsaGroups[$groupName] = [
+                                'name' => $groupName,
+                                'qty' => 0,
+                                'total' => 0.0,
+                            ];
+                        }
+                        $voucherPulsaGroups[$groupName]['qty'] += (int) $item->quantity;
+                        $voucherPulsaGroups[$groupName]['total'] += (float) ($item->subtotal ?? ($item->price * $item->quantity));
+                    }
+                }
+            }
+
+            $totalVoucherPulsa = (float) array_sum(array_column($voucherPulsaGroups, 'total'));
+
+            // 2. Acesories (Physical Goods)
+            $accessoriesItems = [];
+            foreach ($shiftSales as $s) {
+                foreach ($s->items as $item) {
+                    if (! $this->isVoucherOrPulsa($item->product)) {
+                        $productName = $item->product?->name ?: 'Aksesoris';
+                        $variant = $item->product?->variant ?: '';
+                        $fullName = $variant ? "{$productName} ({$variant})" : $productName;
+                        if ($item->serial_number) {
+                            $fullName .= " [SN: {$item->serial_number}]";
+                        }
+
+                        $itemPrice = (float) ($item->price ?? ($item->product?->price ?? 0));
+                        $itemSubtotal = (float) ($item->subtotal ?? ($itemPrice * $item->quantity));
+
+                        $accessoriesItems[] = [
+                            'name' => $fullName,
+                            'price' => $itemPrice,
+                            'qty' => (int) $item->quantity,
+                            'total' => $itemSubtotal,
+                        ];
+                    }
+                }
+            }
+            $totalAccessories = (float) array_sum(array_column($accessoriesItems, 'total'));
+
+            // 3. Payment Methods Breakdown
+            $payments = [
+                'cash' => 0.0,
+                'qris' => 0.0,
+                'transfer' => 0.0,
+                'debit' => 0.0,
+            ];
+            foreach ($shiftSales as $s) {
+                $method = strtolower($s->payment_method ?: 'cash');
+                $payments[$method] = ($payments[$method] ?? 0.0) + (float) $s->total;
+            }
+            foreach ($shiftPulsa as $ps) {
+                $method = strtolower($ps->payment_method ?: 'cash');
+                $payments[$method] = ($payments[$method] ?? 0.0) + (float) ($ps->price ?? 0);
+            }
+
+            $totalShiftSales = $totalVoucherPulsa + $totalAccessories;
+            $totalNonCash = (float) (($payments['qris'] ?? 0.0) + ($payments['transfer'] ?? 0.0) + ($payments['debit'] ?? 0.0));
+            $totalCash = (float) ($payments['cash'] ?? 0.0);
+
+            $shiftData[$shiftKey] = [
+                'label' => $shiftLabel,
+                'voucher_pulsa' => array_values($voucherPulsaGroups),
+                'total_voucher_pulsa' => $totalVoucherPulsa,
+                'accessories' => $accessoriesItems,
+                'total_accessories' => $totalAccessories,
+                'payments' => $payments,
+                'total_cash' => $totalCash,
+                'total_non_cash' => $totalNonCash,
+                'total_sales' => $totalShiftSales,
+            ];
+        }
+
+        // Detailed Breakdown of Transactions
+        $detailedVouchers = [];
+        $detailedPulsa = [];
+        $detailedAccessories = [];
+
+        // 1. Detailed Vouchers from PulsaSale
+        foreach ($pulsaSales as $ps) {
+            $isVcr = str_starts_with($ps->reference_number ?? '', 'VCR-') || $this->isVoucher($ps->product);
+            if ($isVcr) {
+                $detailedVouchers[] = [
+                    'id' => 'VCR-' . $ps->id,
+                    'reference_number' => $ps->reference_number,
+                    'date' => $ps->sale_date ? $ps->sale_date->format('d/m/Y H:i') : '-',
+                    'date_raw' => $ps->sale_date?->toISOString(),
+                    'shift' => strtolower($ps->shift ?: 'pagi'),
+                    'product_name' => $ps->product?->name ?: 'Voucher',
+                    'category' => $ps->product?->category ?: 'Voucher',
+                    'variant' => $ps->product?->variant ?: '-',
+                    'serial_number' => $ps->serial_number ?: '-',
+                    'target_number' => $ps->target_number ?: '-',
+                    'customer_name' => $ps->customer_name ?: '-',
+                    'quantity' => 1,
+                    'price' => (float) $ps->price,
+                    'payment_method' => strtolower($ps->payment_method ?: 'cash'),
+                    'status' => $ps->status ?: 'success',
+                    'source' => 'Menu Voucher',
+                ];
+            } else {
+                $detailedPulsa[] = [
+                    'id' => 'PLS-' . $ps->id,
+                    'reference_number' => $ps->reference_number,
+                    'date' => $ps->sale_date ? $ps->sale_date->format('d/m/Y H:i') : '-',
+                    'date_raw' => $ps->sale_date?->toISOString(),
+                    'shift' => strtolower($ps->shift ?: 'pagi'),
+                    'provider' => $ps->product?->category ?: ($ps->product?->provider?->name ?: 'Elektrik'),
+                    'product_name' => $ps->product?->name ?: 'Pulsa',
+                    'target_number' => $ps->target_number ?: '-',
+                    'serial_number' => $ps->serial_number ?: '-',
+                    'wallet_name' => $ps->wallet?->name ?: '-',
+                    'customer_name' => $ps->customer_name ?: '-',
+                    'price' => (float) $ps->price,
+                    'cost_price' => (float) $ps->cost_amount,
+                    'profit' => (float) ($ps->price - $ps->cost_amount),
+                    'payment_method' => strtolower($ps->payment_method ?: 'cash'),
+                    'status' => $ps->status ?: 'pending',
+                ];
+            }
+        }
+
+        // 2. Detailed Vouchers & Accessories from POS Sales
+        foreach ($sales as $s) {
+            foreach ($s->items as $item) {
+                if ($this->isVoucher($item->product)) {
+                    $detailedVouchers[] = [
+                        'id' => 'POS-VCR-' . $s->id . '-' . $item->id,
+                        'reference_number' => $s->invoice_number,
+                        'date' => $s->sale_date ? $s->sale_date->format('d/m/Y H:i') : '-',
+                        'date_raw' => $s->sale_date?->toISOString(),
+                        'shift' => strtolower($s->shift ?: 'pagi'),
+                        'product_name' => $item->product?->name ?: 'Voucher',
+                        'category' => $item->product?->category ?: 'Voucher',
+                        'variant' => $item->product?->variant ?: '-',
+                        'serial_number' => $item->serial_number ?: ($item->product?->serial_number ?: '-'),
+                        'target_number' => '-',
+                        'customer_name' => $s->customer_name ?: '-',
+                        'quantity' => (int) $item->quantity,
+                        'price' => (float) ($item->subtotal ?? ($item->price * $item->quantity)),
+                        'payment_method' => strtolower($s->payment_method ?: 'cash'),
+                        'status' => 'success',
+                        'source' => 'Kasir POS',
+                    ];
+                } elseif (! $this->isPulsaElektrik($item->product)) {
+                    $detailedAccessories[] = [
+                        'id' => 'ACC-' . $s->id . '-' . $item->id,
+                        'invoice_number' => $s->invoice_number,
+                        'date' => $s->sale_date ? $s->sale_date->format('d/m/Y H:i') : '-',
+                        'date_raw' => $s->sale_date?->toISOString(),
+                        'shift' => strtolower($s->shift ?: 'pagi'),
+                        'product_code' => $item->product?->code ?: '-',
+                        'product_name' => $item->product?->name ?: 'Barang Fisik',
+                        'variant' => $item->product?->variant ?: '-',
+                        'serial_number' => $item->serial_number ?: '-',
+                        'customer_name' => $s->customer_name ?: '-',
+                        'quantity' => (int) $item->quantity,
+                        'price' => (float) $item->price,
+                        'subtotal' => (float) ($item->subtotal ?? ($item->price * $item->quantity)),
+                        'payment_method' => strtolower($s->payment_method ?: 'cash'),
+                    ];
+                }
+            }
+        }
+
+        // Global Expenses
+        $totalExpenses = (float) $expenses->sum('amount');
+        $expenseList = $expenses->map(fn ($e) => [
+            'description' => $e->description ?: ($e->notes ?: ($e->category ?: 'Pengeluaran Operasional')),
+            'amount' => (float) $e->amount,
+            'date' => $e->expense_date ? $e->expense_date->format('d/m/Y H:i') : '-',
+        ])->all();
+
+        // Overall Totals
+        $totalVoucherSales = (float) array_sum(array_column($detailedVouchers, 'price'));
+        $totalPulsaSales = (float) array_sum(array_column($detailedPulsa, 'price'));
+        $totalAccessoriesSales = (float) array_sum(array_column($detailedAccessories, 'subtotal'));
+        $grandTotalSales = $shiftData['pagi']['total_sales'] + $shiftData['sore']['total_sales'];
+        $grandTotalCash = $shiftData['pagi']['total_cash'] + $shiftData['sore']['total_cash'];
+        $grandTotalNonCash = $shiftData['pagi']['total_non_cash'] + $shiftData['sore']['total_non_cash'];
+
+        // Low stock products
+        $lowStockProducts = Product::query()
+            ->where('product_type', 'regular')
+            ->whereColumn('stock', '<=', 'minimum_stock')
+            ->orderBy('stock', 'asc')
+            ->get(['id', 'code', 'name', 'stock', 'minimum_stock', 'unit']);
+
+        return [
+            'period' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'formatted' => Carbon::parse($startDate)->isoFormat('D MMMM Y') . ($startDate !== $endDate ? ' - ' . Carbon::parse($endDate)->isoFormat('D MMMM Y') : ''),
+            ],
+            'shifts' => $shiftData,
+            'details' => [
+                'vouchers' => array_reverse($detailedVouchers),
+                'pulsa' => array_reverse($detailedPulsa),
+                'accessories' => array_reverse($detailedAccessories),
+            ],
+            'expenses' => [
+                'items' => $expenseList,
+                'total' => $totalExpenses,
+            ],
+            'summary' => [
+                'grand_total_sales' => $grandTotalSales,
+                'total_voucher_sales' => $totalVoucherSales,
+                'total_pulsa_sales' => $totalPulsaSales,
+                'total_accessories_sales' => $totalAccessoriesSales,
+                'grand_total_cash' => $grandTotalCash,
+                'grand_total_non_cash' => $grandTotalNonCash,
+                'grand_total_expenses' => $totalExpenses,
+                'net_income' => $grandTotalSales - $totalExpenses,
+                'cash_in_drawer' => max(0, $grandTotalCash - $totalExpenses),
+                'total_transactions' => count($detailedVouchers) + count($detailedPulsa) + count($detailedAccessories),
+                'total_voucher_count' => count($detailedVouchers),
+                'total_pulsa_count' => count($detailedPulsa),
+                'total_accessories_count' => count($detailedAccessories),
+            ],
+            'low_stock' => $lowStockProducts,
+        ];
+    }
+
+    public function isVoucher(?Product $product): bool
+    {
+        if (! $product) {
+            return false;
+        }
+        $type = strtolower($product->product_type ?? '');
+        $cat = strtolower($product->category ?? '');
+        $name = strtolower($product->name ?? '');
+
+        return $type === 'voucher'
+            || str_contains($cat, 'voucher')
+            || str_contains($cat, 'perdana')
+            || str_starts_with($name, 'voucher')
+            || str_starts_with($name, 'perdana')
+            || str_contains($name, 'voucher')
+            || str_contains($name, 'perdana');
+    }
+
+    public function isPulsaElektrik(?Product $product): bool
+    {
+        if (! $product) {
+            return false;
+        }
+
+        return $product->product_type === 'pulsa' || $product->provider_id !== null;
+    }
+
+    public function isVoucherOrPulsa(?Product $product): bool
+    {
+        return $this->isVoucher($product) || $this->isPulsaElektrik($product);
+    }
+
+    private function resolveVoucherPulsaGroupName(?string $walletName, ?string $providerName, ?string $category, ?string $productName): string
+    {
+        $combined = strtolower(trim(($walletName ?? '') . ' ' . ($providerName ?? '') . ' ' . ($category ?? '') . ' ' . ($productName ?? '')));
+
+        if (str_contains($combined, 'byu') || str_contains($combined, 'by.u')) {
+            return 'VOUCHER BYU';
+        }
+        if (str_contains($combined, 'payfazz')) {
+            return 'payfazz';
+        }
+        if (str_contains($combined, 'propana')) {
+            return 'propana';
+        }
+        if (str_contains($combined, 'shopee')) {
+            return 'mitra shopee';
+        }
+        if (str_contains($combined, 'e-money') || str_contains($combined, 'emoney') || str_contains($combined, 'dana') || str_contains($combined, 'ovo') || str_contains($combined, 'gopay')) {
+            return 'E-money';
+        }
+        if (str_contains($combined, 'smartfren') || str_contains($combined, 'smart')) {
+            return 'voucher smartfren';
+        }
+        if (str_contains($combined, 'axis')) {
+            return 'voucher/perdana axis';
+        }
+        if (str_contains($combined, 'rita') || str_contains($combined, 'three') || str_contains($combined, 'tri') || str_contains($combined, 'tree')) {
+            return 'rita/voucher tree';
+        }
+        if (str_contains($combined, 'sisimple') || str_contains($combined, 'indosat') || str_contains($combined, 'im3') || str_contains($combined, 'isat')) {
+            return 'voucher/sisimple indosat';
+        }
+        if (str_contains($combined, 'sidompul')) {
+            return 'sidompul xl';
+        }
+        if (str_contains($combined, 'xl')) {
+            if (str_contains($combined, 'voucher') || str_contains($combined, 'vcr') || str_starts_with($combined, 'v')) {
+                return 'voucher xl';
+            }
+            return 'sidompul xl';
+        }
+        if (str_contains($combined, 'telkomsel') || str_contains($combined, 'tsel') || str_contains($combined, 'digipos')) {
+            if (str_contains($combined, 'voucher') || str_contains($combined, 'vcr')) {
+                return 'voucher telkomsel';
+            }
+            return 'digipost';
+        }
+        if (str_contains($combined, 'perdana')) {
+            return 'perdana ALL OPERATOR';
+        }
+
+        $w = trim($walletName ?? '');
+        $c = trim($category ?? '');
+        $p = trim($productName ?? '');
+        if ($w && $c && strtolower($w) !== strtolower($c)) {
+            return "{$w} ({$c})";
+        }
+
+        return $w ?: ($c ?: ($p ?: 'Lain-lain'));
     }
 
     public function masterData(): RedirectResponse

@@ -640,4 +640,137 @@ class PosTest extends TestCase
             'wallet_id' => $walletId,
         ]);
     }
+
+    public function test_report_data_includes_vouchers_pulsa_and_accessories(): void
+    {
+        $this->signIn('admin');
+
+        // Create wallet and provider
+        $wallet = Wallet::create(['name' => 'Dompet Saldo Test', 'balance' => 500000, 'is_active' => true]);
+        $provider = Provider::create(['name' => 'TELKOMSEL']);
+        $provider->wallets()->attach($wallet->id);
+
+        // 1. Voucher product
+        $voucherProduct = Product::create([
+            'code' => 'VCR-XL-01',
+            'name' => 'Voucher XL Go 5000',
+            'product_type' => 'regular',
+            'category' => 'Voucher',
+            'unit' => 'pcs',
+            'price' => 85000,
+            'cost_price' => 70000,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        // 2. Pulsa product
+        $pulsaProduct = Product::create([
+            'code' => 'PLS-TS-01',
+            'name' => 'TELKOMSEL 5K',
+            'product_type' => 'pulsa',
+            'provider_id' => $provider->id,
+            'category' => 'TELKOMSEL',
+            'unit' => 'trx',
+            'price' => 7000,
+            'cost_price' => 5500,
+            'stock' => 0,
+            'is_active' => true,
+        ]);
+
+        // 3. Accessory product
+        $accProduct = Product::create([
+            'code' => 'ACC-01',
+            'name' => 'Kabel Data Type C',
+            'product_type' => 'regular',
+            'category' => 'Kabel',
+            'unit' => 'pcs',
+            'price' => 25000,
+            'cost_price' => 15000,
+            'stock' => 20,
+            'is_active' => true,
+        ]);
+
+        // Record a Pulsa sale
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'PLS-20261011-001',
+            'sale_date' => now(),
+            'product_id' => $pulsaProduct->id,
+            'wallet_id' => $wallet->id,
+            'customer_name' => 'Budi',
+            'target_number' => '08123456789',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 7000,
+            'cost_amount' => 5500,
+            'cash_paid' => 10000,
+            'change_amount' => 3000,
+            'status' => 'success',
+        ]);
+
+        // Record a Voucher sale via PulsaSale
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'VCR-20261011-001',
+            'sale_date' => now(),
+            'product_id' => $voucherProduct->id,
+            'wallet_id' => null,
+            'customer_name' => 'Siti',
+            'target_number' => '08512345678',
+            'serial_number' => 'SN-XL-999',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 85000,
+            'cost_amount' => 70000,
+            'cash_paid' => 85000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        // Record an Accessory sale via POS Sale
+        $sale = \App\Models\Sale::create([
+            'invoice_number' => 'INV-20261011-001',
+            'sale_date' => now(),
+            'customer_name' => 'Andi',
+            'shift' => 'sore',
+            'payment_method' => 'qris',
+            'subtotal' => 25000,
+            'discount' => 0,
+            'total' => 25000,
+            'cash_paid' => 25000,
+            'change_amount' => 0,
+        ]);
+        $sale->items()->create([
+            'product_id' => $accProduct->id,
+            'serial_number' => null,
+            'quantity' => 1,
+            'price' => 25000,
+            'subtotal' => 25000,
+        ]);
+
+        // 1. Report page view
+        $viewResponse = $this->get('/report');
+        $viewResponse->assertOk();
+        $viewResponse->assertSee('Laporan & Rekapan Penjualan Harian', false);
+        $viewResponse->assertSee('Penjualan Voucher');
+        $viewResponse->assertSee('Pulsa Elektrik');
+        $viewResponse->assertSee('Barang / Acesories');
+
+        // 2. Report data endpoint
+        $today = now()->toDateString();
+        $dataResponse = $this->getJson("/ajax/report/data?start_date={$today}&end_date={$today}");
+        $dataResponse->assertOk()
+            ->assertJsonPath('summary.grand_total_sales', 117000)
+            ->assertJsonPath('summary.total_voucher_sales', 85000)
+            ->assertJsonPath('summary.total_pulsa_sales', 7000)
+            ->assertJsonPath('summary.total_accessories_sales', 25000)
+            ->assertJsonPath('summary.total_transactions', 3)
+            ->assertJsonCount(1, 'details.vouchers')
+            ->assertJsonCount(1, 'details.pulsa')
+            ->assertJsonCount(1, 'details.accessories');
+
+        // 3. Report PDF export stream/download
+        $pdfResponse = $this->get("/report/pdf?start_date={$today}&end_date={$today}&view=preview");
+        $pdfResponse->assertOk();
+        $this->assertEquals('application/pdf', $pdfResponse->headers->get('content-type'));
+    }
 }
+
