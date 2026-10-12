@@ -246,15 +246,21 @@
                     </tbody>
                 </table>
 
-                <!-- 3. Breakdown Pembayaran Non-Tunai -->
+                <!-- 3. Breakdown Pembayaran Non-Tunai & Utang -->
                 <div class="payment-box">
                     <div class="payment-row">trf via wa: <strong>Rp {{ number_format($pagi['payments']['transfer'] ?? 0, 0, ',', '.') }}</strong></div>
-                    <div class="payment-row">trf bank: <strong>Rp 0</strong></div>
+                    <div class="payment-row">trf bank: <strong>Rp {{ number_format($pagi['payments']['bank'] ?? 0, 0, ',', '.') }}</strong></div>
                     <div class="payment-row">TRF QRIS: <strong>Rp {{ number_format($pagi['payments']['qris'] ?? 0, 0, ',', '.') }}</strong></div>
                     <div class="payment-row">E-MONEY: <strong>Rp {{ number_format($pagi['payments']['debit'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="payment-row" style="color: #b45309;">utang pulsa rp.: <strong>Rp {{ number_format($pagi['total_debt'] ?? 0, 0, ',', '.') }}</strong></div>
                     <div class="payment-row" style="margin-top: 2px; border-top: 1px dashed #cbd5e1; padding-top: 2px;">
                         Tunai (Cash): <strong>Rp {{ number_format($pagi['total_cash'] ?? 0, 0, ',', '.') }}</strong>
                     </div>
+                </div>
+
+                <div class="notes-box" style="min-height: 18px; margin-top: -3px; margin-bottom: 4px;">
+                    <strong>Catatan Utang / Bon:</strong>
+                    <div>{{ $pagi['debt_notes'] ?? '-' }}</div>
                 </div>
 
                 <!-- 4. Pengeluaran Shift -->
@@ -273,11 +279,24 @@
                 </div>
 
                 <!-- 5. Rekapitulasi Akhir Shift Pagi -->
+                @php
+                    $pagiTotalMoney = $pagi['total_money'] ?? (($pagi['total_cash'] ?? 0) + ($pagi['total_non_cash'] ?? 0) + ($pagi['total_debt'] ?? 0));
+                    $pagiSel = $pagi['selisih'] ?? ($pagiTotalMoney - ($pagi['total_sales'] ?? 0));
+                @endphp
                 <div class="summary-box">
                     <div class="summary-row">total penjualan pagi: <strong style="float: right;">Rp {{ number_format($pagi['total_sales'] ?? 0, 0, ',', '.') }}</strong></div>
-                    <div class="summary-row">total uang + nontunai: <strong style="float: right;">Rp {{ number_format(($pagi['total_cash'] ?? 0) + ($pagi['total_non_cash'] ?? 0), 0, ',', '.') }}</strong></div>
+                    <div class="summary-row">total uang + nontunai: <strong style="float: right;">Rp {{ number_format($pagiTotalMoney, 0, ',', '.') }}</strong></div>
+                    <div class="summary-row font-bold" style="color: {{ $pagiSel < 0 ? '#b91c1c' : ($pagiSel > 0 ? '#047857' : '#0f172a') }};">
+                        selisih: <strong style="float: right;">{{ $pagiSel < 0 ? '- ' : '' }}Rp {{ number_format(abs($pagiSel), 0, ',', '.') }}</strong>
+                    </div>
+                    <div class="summary-row" style="margin-top: 2px; border-top: 1px dashed #cbd5e1; padding-top: 2px;">
+                        pembayaran utang: <strong style="float: right;">Rp {{ number_format($pagi['total_debt_payment'] ?? 0, 0, ',', '.') }}</strong>
+                    </div>
+                    @if (!empty($pagi['debt_payment_notes']) && $pagi['debt_payment_notes'] !== '-')
+                        <div style="font-size: 7px; color: #475569; margin-bottom: 2px;">({{ $pagi['debt_payment_notes'] }})</div>
+                    @endif
                     <div class="summary-row font-bold" style="border-top: 1px solid #0f172a; padding-top: 2px; margin-top: 2px;">
-                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format(max(0, ($pagi['total_cash'] ?? 0) - (($expenses['total'] ?? 0) / 2)), 0, ',', '.') }}</strong>
+                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format($pagi['net_cash'] ?? max(0, ($pagi['total_cash'] ?? 0) - (($expenses['total'] ?? 0) / 2)), 0, ',', '.') }}</strong>
                     </div>
                 </div>
             </td>
@@ -343,15 +362,21 @@
                     </tbody>
                 </table>
 
-                <!-- 3. Breakdown Pembayaran Non-Tunai -->
+                <!-- 3. Breakdown Pembayaran Non-Tunai & Utang -->
                 <div class="payment-box">
                     <div class="payment-row">trf via wa: <strong>Rp {{ number_format($sore['payments']['transfer'] ?? 0, 0, ',', '.') }}</strong></div>
-                    <div class="payment-row">trf bank: <strong>Rp 0</strong></div>
+                    <div class="payment-row">trf bank: <strong>Rp {{ number_format($sore['payments']['bank'] ?? 0, 0, ',', '.') }}</strong></div>
                     <div class="payment-row">TRF QRIS: <strong>Rp {{ number_format($sore['payments']['qris'] ?? 0, 0, ',', '.') }}</strong></div>
                     <div class="payment-row">E-MONEY: <strong>Rp {{ number_format($sore['payments']['debit'] ?? 0, 0, ',', '.') }}</strong></div>
+                    <div class="payment-row" style="color: #b45309;">utang pulsa rp.: <strong>Rp {{ number_format($sore['total_debt'] ?? 0, 0, ',', '.') }}</strong></div>
                     <div class="payment-row" style="margin-top: 2px; border-top: 1px dashed #cbd5e1; padding-top: 2px;">
                         Tunai (Cash): <strong>Rp {{ number_format($sore['total_cash'] ?? 0, 0, ',', '.') }}</strong>
                     </div>
+                </div>
+
+                <div class="notes-box" style="min-height: 18px; margin-top: -3px; margin-bottom: 4px;">
+                    <strong>Catatan Utang / Bon:</strong>
+                    <div>{{ $sore['debt_notes'] ?? '-' }}</div>
                 </div>
 
                 <!-- 4. Pengeluaran Shift -->
@@ -364,11 +389,24 @@
                 </div>
 
                 <!-- 5. Rekapitulasi Akhir Shift Sore -->
+                @php
+                    $soreTotalMoney = $sore['total_money'] ?? (($sore['total_cash'] ?? 0) + ($sore['total_non_cash'] ?? 0) + ($sore['total_debt'] ?? 0));
+                    $soreSel = $sore['selisih'] ?? ($soreTotalMoney - ($sore['total_sales'] ?? 0));
+                @endphp
                 <div class="summary-box">
                     <div class="summary-row">total penjualan sore: <strong style="float: right;">Rp {{ number_format($sore['total_sales'] ?? 0, 0, ',', '.') }}</strong></div>
-                    <div class="summary-row">total uang + nontunai: <strong style="float: right;">Rp {{ number_format(($sore['total_cash'] ?? 0) + ($sore['total_non_cash'] ?? 0), 0, ',', '.') }}</strong></div>
+                    <div class="summary-row">total uang + nontunai: <strong style="float: right;">Rp {{ number_format($soreTotalMoney, 0, ',', '.') }}</strong></div>
+                    <div class="summary-row font-bold" style="color: {{ $soreSel < 0 ? '#b91c1c' : ($soreSel > 0 ? '#047857' : '#0f172a') }};">
+                        selisih: <strong style="float: right;">{{ $soreSel < 0 ? '- ' : '' }}Rp {{ number_format(abs($soreSel), 0, ',', '.') }}</strong>
+                    </div>
+                    <div class="summary-row" style="margin-top: 2px; border-top: 1px dashed #cbd5e1; padding-top: 2px;">
+                        pembayaran utang: <strong style="float: right;">Rp {{ number_format($sore['total_debt_payment'] ?? 0, 0, ',', '.') }}</strong>
+                    </div>
+                    @if (!empty($sore['debt_payment_notes']) && $sore['debt_payment_notes'] !== '-')
+                        <div style="font-size: 7px; color: #475569; margin-bottom: 2px;">({{ $sore['debt_payment_notes'] }})</div>
+                    @endif
                     <div class="summary-row font-bold" style="border-top: 1px solid #0f172a; padding-top: 2px; margin-top: 2px;">
-                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format(max(0, ($sore['total_cash'] ?? 0) - (($expenses['total'] ?? 0) / 2)), 0, ',', '.') }}</strong>
+                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format($sore['net_cash'] ?? max(0, ($sore['total_cash'] ?? 0) - (($expenses['total'] ?? 0) / 2)), 0, ',', '.') }}</strong>
                     </div>
                 </div>
             </td>
@@ -404,21 +442,29 @@
     <!-- Ringkasan KPI -->
     <table class="kpi-strip">
         <tr>
-            <td width="25%">
+            <td width="17%">
                 <div class="kpi-title">Total Penjualan</div>
                 <div class="kpi-val" style="color: #2563eb;">Rp {{ number_format($summary['grand_total_sales'] ?? 0, 0, ',', '.') }}</div>
             </td>
-            <td width="25%">
+            <td width="17%">
                 <div class="kpi-title">Voucher ({{ $summary['total_voucher_count'] ?? 0 }} Trx)</div>
                 <div class="kpi-val" style="color: #7e22ce;">Rp {{ number_format($summary['total_voucher_sales'] ?? 0, 0, ',', '.') }}</div>
             </td>
-            <td width="25%">
-                <div class="kpi-title">Pulsa Elektrik ({{ $summary['total_pulsa_count'] ?? 0 }} Trx)</div>
+            <td width="17%">
+                <div class="kpi-title">Pulsa ({{ $summary['total_pulsa_count'] ?? 0 }} Trx)</div>
                 <div class="kpi-val" style="color: #0284c7;">Rp {{ number_format($summary['total_pulsa_sales'] ?? 0, 0, ',', '.') }}</div>
             </td>
-            <td width="25%">
+            <td width="17%">
                 <div class="kpi-title">Acesories ({{ $summary['total_accessories_count'] ?? 0 }} Trx)</div>
                 <div class="kpi-val" style="color: #0d9488;">Rp {{ number_format($summary['total_accessories_sales'] ?? 0, 0, ',', '.') }}</div>
+            </td>
+            <td width="16%">
+                <div class="kpi-title">Utang ({{ $summary['total_debt_count'] ?? 0 }} Trx)</div>
+                <div class="kpi-val" style="color: #b45309;">Rp {{ number_format($summary['grand_total_debt'] ?? 0, 0, ',', '.') }}</div>
+            </td>
+            <td width="16%">
+                <div class="kpi-title">Bayar Utang ({{ $summary['total_debt_payment_count'] ?? 0 }} Trx)</div>
+                <div class="kpi-val" style="color: #047857;">Rp {{ number_format($summary['grand_total_debt_payment'] ?? 0, 0, ',', '.') }}</div>
             </td>
         </tr>
     </table>
@@ -525,6 +571,76 @@
             @empty
                 <tr>
                     <td colspan="7" class="text-center" style="color: #64748b; padding: 4px;">- Tidak ada transaksi acesories -</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <!-- 4. Detail Utang Pelanggan -->
+    <div class="section-header" style="text-align: left; background-color: #fef3c7; border-color: #d97706; margin-top: 6px;">
+        4. Rincian Utang Pelanggan / Bon (Total: Rp {{ number_format($summary['grand_total_debt'] ?? 0, 0, ',', '.') }})
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="18%">Ref / Kode</th>
+                <th width="15%">Waktu</th>
+                <th width="8%">Shift</th>
+                <th width="18%">Pelanggan</th>
+                <th width="17%">Keterangan</th>
+                <th width="12%" class="text-right">Total Utang</th>
+                <th width="12%" class="text-right">Sisa Utang</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($details['debts'] ?? [] as $d)
+                <tr>
+                    <td class="font-bold">{{ $d['reference_number'] }}</td>
+                    <td>{{ $d['date'] }}</td>
+                    <td class="text-center">{{ strtoupper($d['shift']) }}</td>
+                    <td>{{ $d['customer_name'] }}</td>
+                    <td>{{ $d['description'] }}</td>
+                    <td class="text-right font-bold">{{ number_format($d['amount'], 0, ',', '.') }}</td>
+                    <td class="text-right font-bold" style="color: #b91c1c;">{{ number_format($d['remaining_amount'], 0, ',', '.') }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="7" class="text-center" style="color: #64748b; padding: 4px;">- Tidak ada catatan utang pada periode ini -</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <!-- 5. Detail Pembayaran Utang -->
+    <div class="section-header" style="text-align: left; background-color: #d1fae5; border-color: #059669; margin-top: 6px;">
+        5. Rincian Penerimaan Pembayaran Utang (Total: Rp {{ number_format($summary['grand_total_debt_payment'] ?? 0, 0, ',', '.') }})
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="18%">Ref Pembayaran</th>
+                <th width="15%">Waktu</th>
+                <th width="8%">Shift</th>
+                <th width="18%">Pelanggan</th>
+                <th width="15%">Ref Utang</th>
+                <th width="12%">Metode</th>
+                <th width="14%" class="text-right">Nominal Bayar</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($details['debt_payments'] ?? [] as $p)
+                <tr>
+                    <td class="font-bold">{{ $p['reference_number'] }}</td>
+                    <td>{{ $p['date'] }}</td>
+                    <td class="text-center">{{ strtoupper($p['shift']) }}</td>
+                    <td>{{ $p['customer_name'] }}</td>
+                    <td>{{ $p['debt_reference'] }}</td>
+                    <td class="text-center">{{ strtoupper($p['payment_method']) }}</td>
+                    <td class="text-right font-bold" style="color: #047857;">{{ number_format($p['amount'], 0, ',', '.') }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="7" class="text-center" style="color: #64748b; padding: 4px;">- Tidak ada pembayaran utang pada periode ini -</td>
                 </tr>
             @endforelse
         </tbody>

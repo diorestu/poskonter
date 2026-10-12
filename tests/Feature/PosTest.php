@@ -772,5 +772,135 @@ class PosTest extends TestCase
         $pdfResponse->assertOk();
         $this->assertEquals('application/pdf', $pdfResponse->headers->get('content-type'));
     }
+
+    public function test_cashier_can_record_manual_debt_and_repayment(): void
+    {
+        $this->signIn('cashier');
+
+        // 1. Create debt
+        $debtResponse = $this->postJson('/ajax/debts', [
+            'customer_name' => 'Surya',
+            'customer_phone' => '08123456789',
+            'amount' => 1415000,
+            'shift' => 'pagi',
+            'description' => 'Utang kuota dan pulsa',
+            'notes' => 'Janji bayar sore',
+        ]);
+
+        $debtResponse->assertCreated()
+            ->assertJsonPath('debt.customer_name', 'Surya')
+            ->assertJsonPath('debt.amount', '1415000.00')
+            ->assertJsonPath('debt.status', 'unpaid');
+
+        $debtId = $debtResponse->json('debt.id');
+        $this->assertDatabaseHas('debts', [
+            'id' => $debtId,
+            'customer_name' => 'Surya',
+            'amount' => 1415000,
+            'paid_amount' => 0,
+            'status' => 'unpaid',
+        ]);
+
+        // 2. Unpaid debts listing
+        $unpaidResponse = $this->getJson('/ajax/debts/unpaid');
+        $unpaidResponse->assertOk();
+        $this->assertTrue(collect($unpaidResponse->json())->contains('id', $debtId));
+
+        // 3. Partial repayment
+        $pay1 = $this->postJson('/ajax/debts/payments', [
+            'debt_id' => $debtId,
+            'customer_name' => 'Surya',
+            'amount' => 415000,
+            'payment_method' => 'cash',
+            'shift' => 'pagi',
+            'notes' => 'Cicilan pertama',
+        ]);
+
+        $pay1->assertCreated()
+            ->assertJsonPath('payment.amount', '415000.00');
+
+        $this->assertDatabaseHas('debts', [
+            'id' => $debtId,
+            'paid_amount' => 415000,
+            'status' => 'partial',
+        ]);
+
+        // 4. Final repayment (full settlement)
+        $pay2 = $this->postJson('/ajax/debts/payments', [
+            'debt_id' => $debtId,
+            'customer_name' => 'Surya',
+            'amount' => 1000000,
+            'payment_method' => 'transfer',
+            'shift' => 'sore',
+            'notes' => 'Pelunasan transfer',
+        ]);
+
+        $pay2->assertCreated()
+            ->assertJsonPath('payment.amount', '1000000.00');
+
+        $this->assertDatabaseHas('debts', [
+            'id' => $debtId,
+            'paid_amount' => 1415000,
+            'status' => 'paid',
+        ]);
+    }
+
+    public function test_sale_with_utang_payment_method_records_debt_and_shows_in_daily_report(): void
+    {
+        $this->signIn('admin');
+
+        $product = Product::create([
+            'code' => 'BRG-UTANG',
+            'name' => 'Kabel Data Type-C',
+            'product_type' => 'regular',
+            'unit' => 'pcs',
+            'price' => 35000,
+            'cost_price' => 20000,
+            'stock' => 10,
+            'minimum_stock' => 1,
+            'is_active' => true,
+        ]);
+
+        // 1. POS Sale on debt (utang)
+        $saleResponse = $this->postJson('/ajax/sales', [
+            'customer_name' => 'Asep',
+            'shift' => 'pagi',
+            'payment_method' => 'utang',
+            'discount' => 0,
+            'cash_paid' => 0,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                    'price' => 35000,
+                ],
+            ],
+        ]);
+
+        $saleResponse->assertCreated()
+            ->assertJsonPath('sale.payment_method', 'utang');
+
+        $this->assertDatabaseHas('debts', [
+            'customer_name' => 'Asep',
+            'amount' => 35000,
+            'shift' => 'pagi',
+            'status' => 'unpaid',
+        ]);
+
+        // 2. Fetch daily report data
+        $today = now()->toDateString();
+        $reportResponse = $this->getJson("/ajax/report/data?start_date={$today}&end_date={$today}");
+        $reportResponse->assertOk()
+            ->assertJsonPath('summary.grand_total_debt', 35000)
+            ->assertJsonPath('summary.total_debt_count', 1)
+            ->assertJsonPath('shifts.pagi.total_debt', 35000);
+
+        $this->assertTrue(collect($reportResponse->json('details.debts'))->contains('customer_name', 'Asep'));
+
+        // 3. PDF report renders successfully
+        $pdfResponse = $this->get("/report/pdf?start_date={$today}&end_date={$today}&view=preview");
+        $pdfResponse->assertOk();
+        $this->assertEquals('application/pdf', $pdfResponse->headers->get('content-type'));
+    }
 }
 

@@ -41,6 +41,9 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/voucher/sales', [PulsaController::class, 'storeVoucherSale'])->name('voucher.sales.store');
             Route::post('/wallets', [PulsaController::class, 'storeWallet'])->name('wallets.store');
             Route::post('/wallets/{wallet}/topup', [PulsaController::class, 'topupWallet'])->name('wallets.topup');
+            Route::post('/debts', [PosController::class, 'storeDebt'])->name('debts.store');
+            Route::post('/debts/payments', [PosController::class, 'storeDebtPayment'])->name('debts.payments.store');
+            Route::get('/debts/unpaid', [PosController::class, 'unpaidDebts'])->name('debts.unpaid');
         });
     });
 

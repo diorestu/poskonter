@@ -56,6 +56,7 @@
                                     <option value="qris">QRIS</option>
                                     <option value="transfer">Transfer</option>
                                     <option value="debit">Debit</option>
+                                    <option value="utang">Utang (Belum Lunas)</option>
                                 </select>
                             </div>
                             <div>
@@ -322,7 +323,7 @@
                     target_number: $('#target_number').val(),
                     shift: $('#pulsa_shift').val(),
                     payment_method: $('#pulsa_payment_method').val(),
-                    cash_paid: maskedNumberValue('#pulsa_cash_paid'),
+                    cash_paid: $('#pulsa_payment_method').val() === 'utang' ? 0 : maskedNumberValue('#pulsa_cash_paid'),
                     notes: $('#pulsa_notes').val(),
                 }).done((response) => {
                     showAlert(`${response.message} Ref ${response.sale.reference_number}`);

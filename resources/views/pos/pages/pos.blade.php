@@ -56,6 +56,7 @@
                                     <option value="qris">QRIS</option>
                                     <option value="transfer">Transfer</option>
                                     <option value="debit">Debit</option>
+                                    <option value="utang">Utang (Belum Lunas)</option>
                                 </select>
                             </div>
                         </div>
@@ -222,6 +223,7 @@
                     qris: 'QRIS',
                     transfer: 'Transfer',
                     debit: 'Debit',
+                    utang: 'Utang (Belum Lunas)',
                 }[value] || value;
             }
 
@@ -442,7 +444,7 @@
                     shift: $('#shift').val(),
                     payment_method: $('#payment_method').val(),
                     discount: maskedNumberValue('#discount'),
-                    cash_paid: maskedNumberValue('#cash_paid_modal'),
+                    cash_paid: $('#payment_method').val() === 'utang' ? 0 : maskedNumberValue('#cash_paid_modal'),
                     items: state.cart.map((item) => ({ product_id: item.id, quantity: item.quantity, serial_number: item.serial_number || null })),
                 }).done((response) => {
                     showAlert(`${response.message} Invoice ${response.sale.invoice_number}`);

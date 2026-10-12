@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Debt;
 use App\Models\Product;
 use App\Models\Provider;
 use App\Models\PulsaSale;
@@ -227,12 +228,12 @@ class PulsaController extends Controller
             'customer_name' => ['nullable', 'string', 'max:120'],
             'target_number' => ['required', 'string', 'max:30'],
             'shift' => ['nullable', 'string', 'in:pagi,sore'],
-            'payment_method' => ['required', 'string', 'in:cash,qris,transfer,debit'],
+            'payment_method' => ['required', 'string', 'in:cash,qris,transfer,debit,utang'],
             'cash_paid' => ['required', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $sale = DB::transaction(function () use ($validated): PulsaSale {
+        $sale = DB::transaction(function () use ($validated, $request): PulsaSale {
             $product = Product::query()->lockForUpdate()->findOrFail($validated['product_id']);
             $wallet = Wallet::query()->lockForUpdate()->findOrFail($validated['wallet_id']);
 
@@ -266,7 +267,8 @@ class PulsaController extends Controller
 
             $price = (float) $product->price;
             $costAmount = (float) $product->cost_price;
-            $cashPaid = (float) $validated['cash_paid'];
+            $isDebt = ($validated['payment_method'] ?? 'cash') === 'utang';
+            $cashPaid = (float) ($validated['cash_paid'] ?? 0);
 
             if ($wallet->balance < $costAmount) {
                 throw ValidationException::withMessages([
@@ -274,7 +276,7 @@ class PulsaController extends Controller
                 ]);
             }
 
-            if ($cashPaid < $price) {
+            if (! $isDebt && $cashPaid < $price) {
                 throw ValidationException::withMessages([
                     'cash_paid' => 'Pembayaran customer kurang dari harga jual.',
                 ]);
@@ -282,7 +284,7 @@ class PulsaController extends Controller
 
             $wallet->decrement('balance', $costAmount);
 
-            return PulsaSale::create([
+            $sale = PulsaSale::create([
                 'reference_number' => 'PLS-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
                 'sale_date' => now(),
                 'product_id' => $product->id,
@@ -294,10 +296,29 @@ class PulsaController extends Controller
                 'price' => $price,
                 'cost_amount' => $costAmount,
                 'cash_paid' => $cashPaid,
-                'change_amount' => $cashPaid - $price,
+                'change_amount' => $isDebt ? 0 : ($cashPaid - $price),
                 'status' => 'pending',
                 'notes' => $validated['notes'] ?? null,
             ]);
+
+            if ($isDebt) {
+                Debt::create([
+                    'reference_number' => 'DEBT-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
+                    'debt_date' => $sale->sale_date,
+                    'customer_name' => $sale->customer_name ?: ($sale->target_number ?: 'Pelanggan Pulsa'),
+                    'customer_phone' => $sale->target_number,
+                    'amount' => $price,
+                    'paid_amount' => $cashPaid,
+                    'status' => $cashPaid >= $price ? 'paid' : ($cashPaid > 0 ? 'partial' : 'unpaid'),
+                    'shift' => $sale->shift,
+                    'pulsa_sale_id' => $sale->id,
+                    'description' => 'Pulsa: ' . ($product->name ?? 'Pulsa') . ' (' . $sale->target_number . ')',
+                    'notes' => $sale->notes,
+                    'created_by' => $request->user()?->id,
+                ]);
+            }
+
+            return $sale;
         });
 
         return response()->json([
@@ -431,12 +452,12 @@ class PulsaController extends Controller
             'customer_name' => ['nullable', 'string', 'max:120'],
             'target_number' => ['nullable', 'string', 'max:30'],
             'shift' => ['nullable', 'string', 'in:pagi,sore'],
-            'payment_method' => ['required', 'string', 'in:cash,qris,transfer,debit'],
+            'payment_method' => ['required', 'string', 'in:cash,qris,transfer,debit,utang'],
             'cash_paid' => ['required', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $sale = DB::transaction(function () use ($validated): PulsaSale {
+        $sale = DB::transaction(function () use ($validated, $request): PulsaSale {
             $product = Product::query()->lockForUpdate()->findOrFail($validated['product_id']);
 
             if (! $product->is_active) {
@@ -446,7 +467,8 @@ class PulsaController extends Controller
             }
 
             $price = (float) $product->price;
-            $cashPaid = (float) $validated['cash_paid'];
+            $isDebt = ($validated['payment_method'] ?? 'cash') === 'utang';
+            $cashPaid = (float) ($validated['cash_paid'] ?? 0);
             $serialNumber = ! empty($validated['serial_number']) ? trim($validated['serial_number']) : null;
 
             $costAmount = (float) $product->cost_price;
@@ -462,7 +484,7 @@ class PulsaController extends Controller
                 }
             }
 
-            if ($cashPaid < $price) {
+            if (! $isDebt && $cashPaid < $price) {
                 throw ValidationException::withMessages([
                     'cash_paid' => 'Pembayaran customer kurang dari harga jual.',
                 ]);
@@ -502,7 +524,7 @@ class PulsaController extends Controller
                 $walletId = $wallet->id;
             }
 
-            return PulsaSale::create([
+            $sale = PulsaSale::create([
                 'reference_number' => $referenceNumber,
                 'sale_date' => now(),
                 'product_id' => $product->id,
@@ -515,10 +537,29 @@ class PulsaController extends Controller
                 'price' => $price,
                 'cost_amount' => $costAmount,
                 'cash_paid' => $cashPaid,
-                'change_amount' => $cashPaid - $price,
+                'change_amount' => $isDebt ? 0 : ($cashPaid - $price),
                 'status' => 'success',
                 'notes' => $validated['notes'] ?? null,
             ]);
+
+            if ($isDebt) {
+                Debt::create([
+                    'reference_number' => 'DEBT-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
+                    'debt_date' => $sale->sale_date,
+                    'customer_name' => $sale->customer_name ?: ($sale->target_number ?: 'Pelanggan Voucher'),
+                    'customer_phone' => $sale->target_number,
+                    'amount' => $price,
+                    'paid_amount' => $cashPaid,
+                    'status' => $cashPaid >= $price ? 'paid' : ($cashPaid > 0 ? 'partial' : 'unpaid'),
+                    'shift' => $sale->shift,
+                    'pulsa_sale_id' => $sale->id,
+                    'description' => 'Voucher: ' . ($product->name ?? 'Voucher') . ($serialNumber ? ' [SN: ' . $serialNumber . ']' : ''),
+                    'notes' => $sale->notes,
+                    'created_by' => $request->user()?->id,
+                ]);
+            }
+
+            return $sale;
         });
 
         return response()->json([

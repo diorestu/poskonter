@@ -100,6 +100,7 @@
                                     <option value="qris">QRIS</option>
                                     <option value="transfer">Transfer</option>
                                     <option value="debit">Debit</option>
+                                    <option value="utang">Utang (Belum Lunas)</option>
                                 </select>
                             </div>
                         </div>
@@ -507,10 +508,11 @@
                     return;
                 }
 
-                const cashPaid = maskedNumberValue('#voucher_cash_paid');
+                const isDebt = $('#voucher_payment_method').val() === 'utang';
+                const cashPaid = isDebt ? 0 : maskedNumberValue('#voucher_cash_paid');
                 const price = Number(product.price || 0);
 
-                if (cashPaid < price) {
+                if (!isDebt && cashPaid < price) {
                     showAlert('Uang yang diterima kurang dari total harga jual.', 'error');
                     return;
                 }
