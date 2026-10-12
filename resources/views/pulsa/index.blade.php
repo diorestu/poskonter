@@ -2,7 +2,7 @@
 
 @section('content')
     <section class="space-y-4">
-        <div class="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <div class="grid gap-4 xl:grid-cols-[1.05fr_0.95fr] items-start">
             <div class="space-y-4">
                 <div class="list-panel p-3">
                     <div class="mb-3 flex items-center justify-between gap-3">
@@ -18,7 +18,7 @@
                 </div>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-4 xl:sticky xl:top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto pr-1">
                 <form id="pulsaForm" class="list-panel p-3">
                     <div class="mb-3 text-sm font-semibold">Form Penjualan Pulsa</div>
                     <div class="space-y-3">

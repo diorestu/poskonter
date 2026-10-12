@@ -37,8 +37,8 @@
                 </div>
             </div>
 
-            <!-- Right Side: Selling Form & Recent Transactions (Maksimum 40% width) -->
-            <div class="space-y-4 max-w-full">
+            <!-- Right Side: Selling Form (Maksimum 40% width) -->
+            <div class="space-y-4 max-w-full self-start lg:sticky lg:top-4">
                 <form id="voucherForm" class="list-panel p-3">
                     <div class="mb-2.5 flex items-center justify-between">
                         <div class="text-sm font-semibold">Form Penjualan Voucher</div>
@@ -137,11 +137,6 @@
                         </button>
                     </div>
                 </form>
-
-                <div class="list-panel p-3">
-                    <div class="mb-2 text-sm font-semibold">Transaksi Voucher Terakhir</div>
-                    <div id="recentVoucherSalesList" class="space-y-2 max-h-[220px] overflow-y-auto"></div>
-                </div>
             </div>
         </div>
     </section>
@@ -382,27 +377,6 @@
                 `).join('') : '<div class="col-span-full text-xs text-[color:var(--muted)]">Belum ada dompet saldo.</div>');
             }
 
-            function renderRecentSales() {
-                if (!state.sales || !state.sales.length) {
-                    $('#recentVoucherSalesList').html('<div class="text-xs text-[color:var(--muted)] py-2 text-center">Belum ada transaksi voucher hari ini.</div>');
-                    return;
-                }
-
-                $('#recentVoucherSalesList').html(state.sales.map((sale) => `
-                    <div class="flex items-center justify-between p-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] text-xs">
-                        <div>
-                            <div class="font-semibold">${sale.reference_number}</div>
-                            <div class="text-[color:var(--muted)] mt-0.5">${sale.product?.name || '-'} ${sale.product?.variant ? `(${sale.product.variant})` : ''}</div>
-                            ${sale.serial_number ? `<div class="font-mono text-[11px] text-indigo-600 mt-0.5">SN: ${sale.serial_number}</div>` : ''}
-                        </div>
-                        <div class="text-right">
-                            <div class="font-semibold">${money(sale.price)}</div>
-                            <div class="text-[11px] text-[color:var(--muted)] mt-0.5">${new Date(sale.sale_date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</div>
-                        </div>
-                    </div>
-                `).join(''));
-            }
-
             function selectProduct(product) {
                 if (!product) return;
 
@@ -448,7 +422,6 @@
                         renderCategoryTabs();
                         renderWallets();
                         renderProducts();
-                        renderRecentSales();
                         fillDefaultProduct();
                         updateSummary();
                     })
