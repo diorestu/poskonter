@@ -72,4 +72,11 @@ class Product extends Model
     {
         return $this->product_type === 'pulsa';
     }
+
+    public function isVoucher(): bool
+    {
+        return $this->product_type === 'voucher'
+            || str_contains(strtolower($this->category ?? ''), 'voucher')
+            || str_contains(strtolower($this->name ?? ''), 'voucher');
+    }
 }

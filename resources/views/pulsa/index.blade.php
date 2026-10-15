@@ -18,7 +18,7 @@
                 </div>
             </div>
 
-            <div class="space-y-4 xl:sticky xl:top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto pr-1">
+            <div class="space-y-4 xl:sticky xl:top-[calc(var(--header-height,0px)+1rem)] self-start max-h-[calc(100vh-var(--header-height,0px)-2rem)] overflow-y-auto pr-1">
                 <form id="pulsaForm" class="list-panel p-3">
                     <div class="mb-3 text-sm font-semibold">Form Penjualan Pulsa</div>
                     <div class="space-y-3">

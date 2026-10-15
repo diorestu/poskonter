@@ -178,7 +178,12 @@
             }
 
             function renderProducts(products) {
-                state.products = products.filter((product) => product.product_type !== 'pulsa');
+                state.products = products.filter((product) => {
+                    const type = String(product.product_type || '').toLowerCase();
+                    const cat = String(product.category || '').toLowerCase();
+                    const name = String(product.name || '').toLowerCase();
+                    return type === 'regular' && !cat.includes('voucher') && !name.includes('voucher');
+                });
                 physicalTable.setData(state.products);
                 physicalTable.setQuery($('#physicalSearch').val());
                 drawTable(physicalTable.pagedRows());

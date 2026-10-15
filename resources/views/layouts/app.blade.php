@@ -9,59 +9,63 @@
     </head>
     <body class="m-0">
         @php
-            $productMenuActive = request()->routeIs('master.physical.*') || request()->routeIs('master.electric.*') || request()->routeIs('voucher.*');
+            $productMenuActive = request()->routeIs('master.physical.*') || request()->routeIs('master.electric.*') || request()->routeIs('master.voucher.*');
             $embedded = request()->boolean('embedded');
         @endphp
-        <div class="{{ $embedded ? 'w-full' : 'window-shell w-full min-h-screen' }}">
+        <div class="{{ $embedded ? 'w-full' : 'window-shell w-full min-h-screen' }}" style="{{ $embedded ? '' : '--header-height: 96px;' }}">
             @unless ($embedded)
-            <header class="title-bar flex items-center justify-between px-4 py-2">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-8 w-8 items-center justify-center border border-white/40 bg-white/15 text-sm font-bold">Z</div>
-                    <div>
-                        <div class="text-sm font-semibold">Zeni POS</div>
-                        <div class="text-[11px] text-white/80">Point of Sale & Stock Control</div>
+            <div class="sticky top-0 z-40 bg-white shadow-xs">
+                <header class="title-bar flex items-center justify-between px-4 py-2">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center border border-white/40 bg-white/15 text-sm font-bold">Z</div>
+                        <div>
+                            <div class="text-sm font-semibold">Zeni POS</div>
+                            <div class="text-[11px] text-white/80">Point of Sale & Stock Control</div>
+                        </div>
                     </div>
-                </div>
-                <div class="flex items-center gap-2 text-[11px] text-white/90">
-                    <div class="user-chip">
-                        <span class="user-chip-name">{{ auth()->user()->name }}</span>
-                        <span class="user-chip-role">{{ strtoupper(auth()->user()->role) }}</span>
+                    <div class="flex items-center gap-2 text-[11px] text-white/90">
+                        <div class="user-chip">
+                            <span class="user-chip-name">{{ auth()->user()->name }}</span>
+                            <span class="user-chip-role">{{ strtoupper(auth()->user()->role) }}</span>
+                        </div>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button class="logout-btn" type="submit">
+                                <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M10 17 15 12 10 7"/><path d="M4 12h11"/><path d="M20 4v16"/></svg></span>
+                                <span>Logout</span>
+                            </button>
+                        </form>
                     </div>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button class="logout-btn" type="submit">
-                            <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M10 17 15 12 10 7"/><path d="M4 12h11"/><path d="M20 4v16"/></svg></span>
-                            <span>Logout</span>
-                        </button>
-                    </form>
-                </div>
-            </header>
+                </header>
 
-            <nav class="border-b border-[#d7e0eb] bg-white px-3">
-                <div class="flex flex-wrap items-center justify-between gap-3 py-1.5">
-                    <div class="flex flex-wrap gap-1">
-                        <a href="{{ route('pos.index') }}" class="menu-link {{ request()->routeIs('pos.*') ? 'menu-link-active' : '' }}">POS</a>
-                        <a href="{{ route('stock.index') }}" class="menu-link {{ request()->routeIs('stock.*') ? 'menu-link-active' : '' }}">Stock</a>
-                        <a href="{{ route('expenses.index') }}" class="menu-link {{ request()->routeIs('expenses.*') ? 'menu-link-active' : '' }}">Pengeluaran</a>
-                        <a href="{{ route('sales-history.index') }}" class="menu-link {{ request()->routeIs('sales-history.*') ? 'menu-link-active' : '' }}">Riwayat Penjualan</a>
-                        @if (auth()->user()->isAdmin())
-                            <a href="{{ route('report.index') }}" class="menu-link {{ request()->routeIs('report.*') ? 'menu-link-active' : '' }}">Report</a>
-                            <div class="menu-dropdown">
-                                <button type="button" class="menu-link menu-dropdown-toggle {{ $productMenuActive ? 'menu-link-active' : '' }}">
-                                    Produk
-                                </button>
-                                <div class="menu-dropdown-panel">
-                                    <a href="{{ route('master.physical.index') }}" class="menu-dropdown-item {{ request()->routeIs('master.physical.*') ? 'menu-dropdown-item-active' : '' }}">Produk Fisik</a>
-                                    <a href="{{ route('master.electric.index') }}" class="menu-dropdown-item {{ request()->routeIs('master.electric.*') ? 'menu-dropdown-item-active' : '' }}">Produk Elektrik</a>
-                                    <a href="{{ route('voucher.index') }}" class="menu-dropdown-item {{ request()->routeIs('voucher.*') ? 'menu-dropdown-item-active' : '' }}">Produk Voucher</a>
+                <nav class="border-b border-[#d7e0eb] bg-white px-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3 py-1.5">
+                        <div class="flex flex-wrap gap-1">
+                            <a href="{{ route('pos.index') }}" class="menu-link {{ request()->routeIs('pos.*') ? 'menu-link-active' : '' }}">POS</a>
+                            <a href="{{ route('stock.index') }}" class="menu-link {{ request()->routeIs('stock.*') ? 'menu-link-active' : '' }}">Stock</a>
+                            <a href="{{ route('expenses.index') }}" class="menu-link {{ request()->routeIs('expenses.*') ? 'menu-link-active' : '' }}">Pengeluaran</a>
+                            <a href="{{ route('pulsa.index') }}" class="menu-link {{ request()->routeIs('pulsa.*') ? 'menu-link-active' : '' }}">Pulsa Elektrik</a>
+                            <a href="{{ route('voucher.index') }}" class="menu-link {{ request()->routeIs('voucher.*') && !request()->routeIs('master.voucher.*') ? 'menu-link-active' : '' }}">Voucher Pulsa</a>
+                            <a href="{{ route('sales-history.index') }}" class="menu-link {{ request()->routeIs('sales-history.*') ? 'menu-link-active' : '' }}">Riwayat Penjualan</a>
+                            @if (auth()->user()->isAdmin())
+                                <a href="{{ route('report.index') }}" class="menu-link {{ request()->routeIs('report.*') ? 'menu-link-active' : '' }}">Report</a>
+                                <div class="menu-dropdown">
+                                    <button type="button" class="menu-link menu-dropdown-toggle {{ $productMenuActive ? 'menu-link-active' : '' }}">
+                                        Produk
+                                    </button>
+                                    <div class="menu-dropdown-panel">
+                                        <a href="{{ route('master.physical.index') }}" class="menu-dropdown-item {{ request()->routeIs('master.physical.*') ? 'menu-dropdown-item-active' : '' }}">Produk Fisik</a>
+                                        <a href="{{ route('master.electric.index') }}" class="menu-dropdown-item {{ request()->routeIs('master.electric.*') ? 'menu-dropdown-item-active' : '' }}">Produk Elektrik</a>
+                                        <a href="{{ route('master.voucher.index') }}" class="menu-dropdown-item {{ request()->routeIs('master.voucher.*') ? 'menu-dropdown-item-active' : '' }}">Produk Voucher</a>
+                                    </div>
                                 </div>
-                            </div>
-                            <a href="{{ route('master.wallets.index') }}" class="menu-link {{ request()->routeIs('master.wallets.*') ? 'menu-link-active' : '' }}">Dompet Saldo</a>
-                            <a href="{{ route('users.index') }}" class="menu-link {{ request()->routeIs('users.*') ? 'menu-link-active' : '' }}">User Management</a>
-                        @endif
+                                <a href="{{ route('master.wallets.index') }}" class="menu-link {{ request()->routeIs('master.wallets.*') ? 'menu-link-active' : '' }}">Dompet Saldo</a>
+                                <a href="{{ route('users.index') }}" class="menu-link {{ request()->routeIs('users.*') ? 'menu-link-active' : '' }}">User Management</a>
+                            @endif
+                        </div>
                     </div>
-                </div>
-            </nav>
+                </nav>
+            </div>
             @endunless
 
             <main class="{{ $embedded ? 'p-0' : 'workspace p-4' }}">

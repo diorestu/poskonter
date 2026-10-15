@@ -335,7 +335,47 @@ class PosTest extends TestCase
         $this->get('/master-data')->assertRedirect(route('master.physical.index'));
         $this->get('/master-data/produk-fisik')->assertOk()->assertSee('Master Produk Fisik');
         $this->get('/master-data/produk-elektrik')->assertOk()->assertSee('Master Produk Elektrik');
+        $this->get('/master-data/produk-voucher')->assertOk()->assertSee('Master Produk Voucher');
         $this->get('/master-data/dompet-saldo')->assertOk()->assertSee('Dompet Saldo');
+    }
+
+    public function test_voucher_product_can_be_created_from_ajax_endpoint(): void
+    {
+        $this->signIn('admin');
+
+        $response = $this->postJson('/ajax/products', [
+            'code' => 'VCR-TSEL-10GB',
+            'name' => 'Voucher Telkomsel 10GB',
+            'product_type' => 'voucher',
+            'category' => 'Telkomsel',
+            'variant' => '10 GB / 30 Hari',
+            'unit' => 'pcs',
+            'price' => 35000,
+            'cost_price' => 30000,
+            'stock' => 5,
+            'serial_number' => 'SN-VCR-001',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('product.code', 'VCR-TSEL-10GB')
+            ->assertJsonPath('product.product_type', 'voucher');
+
+        $this->assertDatabaseHas('products', [
+            'code' => 'VCR-TSEL-10GB',
+            'product_type' => 'voucher',
+            'category' => 'Telkomsel',
+            'stock' => 5,
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'type' => 'in',
+            'quantity' => 5,
+            'serial_number' => 'SN-VCR-001',
+        ]);
+
+        $dashboardResponse = $this->getJson('/ajax/voucher/dashboard');
+        $dashboardResponse->assertOk()
+            ->assertJsonFragment(['code' => 'VCR-TSEL-10GB']);
     }
 
     public function test_cashier_can_access_pulsa_pages(): void

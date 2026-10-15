@@ -586,18 +586,23 @@ class PosController extends Controller
         return view('pos.pages.master-electric');
     }
 
+    public function masterVoucher(): View
+    {
+        return view('pos.pages.master-voucher');
+    }
+
     public function dashboard(): JsonResponse
     {
         $summary = [
             'total_products' => Product::count(),
-            'low_stock_count' => Product::where('product_type', 'regular')->whereColumn('stock', '<=', 'minimum_stock')->count(),
+            'low_stock_count' => Product::where('product_type', '!=', 'pulsa')->whereColumn('stock', '<=', 'minimum_stock')->count(),
             'today_sales_total' => (float) Sale::whereDate('sale_date', today())->sum('total'),
             'today_expenses_total' => (float) Expense::whereDate('expense_date', today())->sum('amount'),
             'today_transactions' => Sale::whereDate('sale_date', today())->count(),
         ];
 
         $products = Product::query()
-            ->with(['provider:id,name', 'provider.wallets:id,name'])
+            ->with(['provider:id,name', 'provider.wallets:id,name', 'sourceWallets:id,name'])
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'product_type', 'provider_id', 'category', 'variant', 'serial_number', 'image_path', 'unit', 'price', 'cost_price', 'stock', 'minimum_stock', 'is_active'])
             ->map(fn (Product $product) => $this->serializeProduct($product));
@@ -652,7 +657,7 @@ class PosController extends Controller
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50', 'unique:products,code'],
             'name' => ['required', 'string', 'max:120'],
-            'product_type' => ['required', 'string', 'in:regular,pulsa'],
+            'product_type' => ['required', 'string', 'in:regular,pulsa,voucher'],
             'category' => ['nullable', 'string', 'max:80'],
             'provider_id' => ['nullable', 'integer', 'exists:providers,id'],
             'variant' => ['nullable', 'string', 'max:80'],
@@ -677,6 +682,18 @@ class PosController extends Controller
             $provider = $this->resolvePulsaProvider($validated);
             $validated['category'] = $provider->name;
             $validated['provider_id'] = $provider->id;
+        } elseif (($validated['product_type'] ?? null) === 'voucher') {
+            if (!empty($validated['provider_id'])) {
+                $provider = Provider::find($validated['provider_id']);
+                if ($provider && empty($validated['category'])) {
+                    $validated['category'] = $provider->name;
+                }
+            } elseif (!empty($validated['category'])) {
+                $provider = Provider::where('name', $validated['category'])->first();
+                if ($provider) {
+                    $validated['provider_id'] = $provider->id;
+                }
+            }
         } else {
             $validated['provider_id'] = null;
         }
@@ -703,15 +720,20 @@ class PosController extends Controller
                 if (array_key_exists('wallet_ids', $validated)) {
                     $provider?->wallets()->sync($validated['wallet_ids'] ?? []);
                 }
-            } elseif ($product->stock > 0) {
-                StockMovement::create([
-                    'product_id' => $product->id,
-                    'type' => 'in',
-                    'quantity' => $product->stock,
-                    'cost_price' => $product->cost_price,
-                    'serial_number' => $product->serial_number,
-                    'note' => 'Stok awal produk baru',
-                ]);
+            } else {
+                if ($product->product_type === 'voucher' && array_key_exists('wallet_ids', $validated)) {
+                    $product->sourceWallets()->sync($validated['wallet_ids'] ?? []);
+                }
+                if ($product->stock > 0) {
+                    StockMovement::create([
+                        'product_id' => $product->id,
+                        'type' => 'in',
+                        'quantity' => $product->stock,
+                        'cost_price' => $product->cost_price,
+                        'serial_number' => $product->serial_number,
+                        'note' => 'Stok awal produk baru',
+                    ]);
+                }
             }
 
             return $product;
@@ -728,7 +750,7 @@ class PosController extends Controller
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50', Rule::unique('products', 'code')->ignore($product->id)],
             'name' => ['required', 'string', 'max:120'],
-            'product_type' => ['nullable', 'string', 'in:regular,pulsa'],
+            'product_type' => ['nullable', 'string', 'in:regular,pulsa,voucher'],
             'category' => ['nullable', 'string', 'max:80'],
             'provider_id' => ['nullable', 'integer', 'exists:providers,id'],
             'variant' => ['nullable', 'string', 'max:80'],
@@ -750,20 +772,33 @@ class PosController extends Controller
             $imagePath = $request->file('image')->store('products', 'public');
         }
 
+        $targetType = $validated['product_type'] ?? $product->product_type;
         $provider = null;
-        if (($validated['product_type'] ?? $product->product_type) === 'pulsa') {
+        if ($targetType === 'pulsa') {
             $provider = $this->resolvePulsaProvider($validated);
             $validated['category'] = $provider->name;
             $validated['provider_id'] = $provider->id;
+        } elseif ($targetType === 'voucher') {
+            if (!empty($validated['provider_id'])) {
+                $provider = Provider::find($validated['provider_id']);
+                if ($provider && empty($validated['category'])) {
+                    $validated['category'] = $provider->name;
+                }
+            } elseif (!empty($validated['category'])) {
+                $provider = Provider::where('name', $validated['category'])->first();
+                if ($provider) {
+                    $validated['provider_id'] = $provider->id;
+                }
+            }
         } else {
             $validated['provider_id'] = null;
         }
 
-        DB::transaction(function () use ($product, $validated, $imagePath, $provider): void {
+        DB::transaction(function () use ($product, $validated, $imagePath, $provider, $targetType): void {
             $product->update([
                 'code' => $validated['code'],
                 'name' => $validated['name'],
-                'product_type' => $validated['product_type'] ?? $product->product_type,
+                'product_type' => $targetType,
                 'provider_id' => $validated['provider_id'] ?? null,
                 'category' => $validated['category'] ?? null,
                 'variant' => $validated['variant'] ?? null,
@@ -775,10 +810,16 @@ class PosController extends Controller
                 'minimum_stock' => $validated['minimum_stock'] ?? 0,
             ]);
 
-            if (($validated['product_type'] ?? null) !== 'pulsa') {
+            if ($targetType === 'pulsa') {
+                if (array_key_exists('wallet_ids', $validated)) {
+                    $provider?->wallets()->sync($validated['wallet_ids'] ?? []);
+                }
+            } elseif ($targetType === 'voucher') {
+                if (array_key_exists('wallet_ids', $validated)) {
+                    $product->sourceWallets()->sync($validated['wallet_ids'] ?? []);
+                }
+            } else {
                 $product->sourceWallets()->sync([]);
-            } elseif (array_key_exists('wallet_ids', $validated)) {
-                $provider?->wallets()->sync($validated['wallet_ids'] ?? []);
             }
         });
 
@@ -993,7 +1034,7 @@ class PosController extends Controller
             'name' => $product->name,
             'category' => $product->category,
             'provider_id' => $product->provider_id,
-            'provider' => $product->isPulsa() ? $product->category : null,
+            'provider' => $product->isPulsa() ? $product->category : ($product->provider?->name ?? $product->category),
             'variant' => $product->variant,
             'product_type' => $product->product_type,
             'serial_number' => $product->serial_number,
