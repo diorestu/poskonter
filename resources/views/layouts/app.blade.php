@@ -44,8 +44,6 @@
                             <a href="{{ route('pos.index') }}" class="menu-link {{ request()->routeIs('pos.*') ? 'menu-link-active' : '' }}">POS</a>
                             <a href="{{ route('stock.index') }}" class="menu-link {{ request()->routeIs('stock.*') ? 'menu-link-active' : '' }}">Stock</a>
                             <a href="{{ route('expenses.index') }}" class="menu-link {{ request()->routeIs('expenses.*') ? 'menu-link-active' : '' }}">Pengeluaran</a>
-                            <a href="{{ route('pulsa.index') }}" class="menu-link {{ request()->routeIs('pulsa.*') ? 'menu-link-active' : '' }}">Pulsa Elektrik</a>
-                            <a href="{{ route('voucher.index') }}" class="menu-link {{ request()->routeIs('voucher.*') && !request()->routeIs('master.voucher.*') ? 'menu-link-active' : '' }}">Voucher Pulsa</a>
                             <a href="{{ route('sales-history.index') }}" class="menu-link {{ request()->routeIs('sales-history.*') ? 'menu-link-active' : '' }}">Riwayat Penjualan</a>
                             @if (auth()->user()->isAdmin())
                                 <a href="{{ route('report.index') }}" class="menu-link {{ request()->routeIs('report.*') ? 'menu-link-active' : '' }}">Report</a>
