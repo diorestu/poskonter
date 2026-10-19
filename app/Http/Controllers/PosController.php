@@ -147,11 +147,21 @@ class PosController extends Controller
 
             // From PulsaSale
             foreach ($shiftPulsa as $ps) {
+                $ref = $ps->reference_number ?? '';
+                $isElectric = str_starts_with(strtoupper(trim($ref)), 'PLS')
+                    || str_contains(strtoupper(trim($ref)), 'PLS')
+                    || str_starts_with(strtoupper(trim($ps->product?->code ?? '')), 'PLS')
+                    || $this->isPulsaElektrik($ps->product)
+                    || $ps->wallet_id !== null;
+
                 $groupName = $this->resolveVoucherPulsaGroupName(
                     $ps->wallet?->name,
                     $ps->product?->provider?->name,
                     $ps->product?->category,
-                    $ps->product?->name
+                    $ps->product?->name,
+                    $isElectric,
+                    $ref,
+                    $ps->product?->code
                 );
 
                 if (! isset($voucherPulsaGroups[$groupName])) {
@@ -168,12 +178,16 @@ class PosController extends Controller
             // From POS Sales (Vouchers / Perdana)
             foreach ($shiftSales as $s) {
                 foreach ($s->items as $item) {
-                    if ($this->isVoucher($item->product)) {
+                    $product = $item->product;
+                    if ($this->isVoucher($product)) {
                         $groupName = $this->resolveVoucherPulsaGroupName(
                             null,
-                            $item->product?->provider?->name,
-                            $item->product?->category,
-                            $item->product?->name
+                            $product?->provider?->name,
+                            $product?->category,
+                            $product?->name,
+                            false,
+                            $s->invoice_number,
+                            $product?->code
                         );
 
                         if (! isset($voucherPulsaGroups[$groupName])) {
@@ -294,8 +308,16 @@ class PosController extends Controller
         // 1. Detailed Vouchers & Pulsa from PulsaSale
         foreach ($pulsaSales as $ps) {
             $ref = $ps->reference_number ?? '';
-            $isPls = str_starts_with($ref, 'PLS-') || $this->isPulsaElektrik($ps->product);
-            $isVcr = ! $isPls && (str_starts_with($ref, 'VCR-') || $this->isVoucher($ps->product));
+            $refUpper = strtoupper(trim($ref));
+            $productCodeUpper = strtoupper(trim($ps->product?->code ?? ''));
+
+            $isPls = str_starts_with($refUpper, 'PLS')
+                || str_contains($refUpper, 'PLS')
+                || str_starts_with($productCodeUpper, 'PLS')
+                || $this->isPulsaElektrik($ps->product)
+                || $ps->wallet_id !== null;
+
+            $isVcr = ! $isPls && (str_starts_with($refUpper, 'VCR') || $this->isVoucher($ps->product));
 
             if ($isVcr) {
                 $detailedVouchers[] = [
@@ -317,13 +339,20 @@ class PosController extends Controller
                     'source' => 'Menu Voucher',
                 ];
             } else {
+                $providerName = $ps->product?->provider?->name;
+                $catName = $ps->product?->category;
+                $displayProvider = $providerName ?: ($catName ?: 'Elektrik');
+                if (str_contains(strtolower($displayProvider), 'telkomsel') || str_contains(strtolower($ps->product?->name ?? ''), 'telkomsel')) {
+                    $displayProvider = 'TELKOMSEL';
+                }
+
                 $detailedPulsa[] = [
                     'id' => 'PLS-' . $ps->id,
                     'reference_number' => $ps->reference_number,
                     'date' => $ps->sale_date ? $ps->sale_date->format('d/m/Y H:i') : '-',
                     'date_raw' => $ps->sale_date?->toISOString(),
                     'shift' => strtolower($ps->shift ?: 'pagi'),
-                    'provider' => $ps->product?->category ?: ($ps->product?->provider?->name ?: 'Elektrik'),
+                    'provider' => $displayProvider,
                     'product_name' => $ps->product?->name ?: 'Pulsa',
                     'target_number' => $ps->target_number ?: '-',
                     'serial_number' => $ps->serial_number ?: '-',
@@ -341,7 +370,10 @@ class PosController extends Controller
         // 2. Detailed Vouchers, Pulsa & Accessories from POS Sales
         foreach ($sales as $s) {
             foreach ($s->items as $item) {
-                if ($this->isVoucher($item->product)) {
+                $productCodeUpper = strtoupper(trim($item->product?->code ?? ''));
+                $isItemPls = str_starts_with($productCodeUpper, 'PLS') || $this->isPulsaElektrik($item->product);
+
+                if ($this->isVoucher($item->product) && ! $isItemPls) {
                     $detailedVouchers[] = [
                         'id' => 'POS-VCR-' . $s->id . '-' . $item->id,
                         'reference_number' => $s->invoice_number,
@@ -360,7 +392,7 @@ class PosController extends Controller
                         'status' => 'success',
                         'source' => 'Kasir POS',
                     ];
-                } elseif (! $this->isPulsaElektrik($item->product)) {
+                } elseif (! $this->isPulsaElektrik($item->product) && ! $isItemPls) {
                     $detailedAccessories[] = [
                         'id' => 'ACC-' . $s->id . '-' . $item->id,
                         'invoice_number' => $s->invoice_number,
@@ -378,13 +410,20 @@ class PosController extends Controller
                         'payment_method' => strtolower($s->payment_method ?: 'cash'),
                     ];
                 } else {
+                    $providerName = $item->product?->provider?->name;
+                    $catName = $item->product?->category;
+                    $displayProvider = $providerName ?: ($catName ?: 'Elektrik');
+                    if (str_contains(strtolower($displayProvider), 'telkomsel') || str_contains(strtolower($item->product?->name ?? ''), 'telkomsel')) {
+                        $displayProvider = 'TELKOMSEL';
+                    }
+
                     $detailedPulsa[] = [
                         'id' => 'POS-PLS-' . $s->id . '-' . $item->id,
                         'reference_number' => $s->invoice_number,
                         'date' => $s->sale_date ? $s->sale_date->format('d/m/Y H:i') : '-',
                         'date_raw' => $s->sale_date?->toISOString(),
                         'shift' => strtolower($s->shift ?: 'pagi'),
-                        'provider' => $item->product?->category ?: ($item->product?->provider?->name ?: 'Elektrik'),
+                        'provider' => $displayProvider,
                         'product_name' => $item->product?->name ?: 'Pulsa',
                         'target_number' => '-',
                         'serial_number' => $item->serial_number ?: '-',
@@ -502,6 +541,11 @@ class PosController extends Controller
             return false;
         }
 
+        $code = strtoupper(trim($product->code ?? ''));
+        if (str_starts_with($code, 'PLS')) {
+            return true;
+        }
+
         if (method_exists($product, 'isPulsa')) {
             return $product->isPulsa();
         }
@@ -583,8 +627,22 @@ class PosController extends Controller
         return $this->isVoucher($product) || $this->isPerdana($product);
     }
 
-    private function resolveVoucherPulsaGroupName(?string $walletName, ?string $providerName, ?string $category, ?string $productName): string
-    {
+    private function resolveVoucherPulsaGroupName(
+        ?string $walletName,
+        ?string $providerName,
+        ?string $category,
+        ?string $productName,
+        bool $isElectric = false,
+        ?string $referenceNumber = null,
+        ?string $productCode = null
+    ): string {
+        $refUpper = strtoupper(trim($referenceNumber ?? ''));
+        $codeUpper = strtoupper(trim($productCode ?? ''));
+        $isPls = $isElectric
+            || str_starts_with($refUpper, 'PLS')
+            || str_contains($refUpper, 'PLS')
+            || str_starts_with($codeUpper, 'PLS');
+
         $combined = strtolower(trim(($walletName ?? '') . ' ' . ($providerName ?? '') . ' ' . ($category ?? '') . ' ' . ($productName ?? '')));
 
         if (str_contains($combined, 'byu') || str_contains($combined, 'by.u')) {
@@ -614,16 +672,19 @@ class PosController extends Controller
         if (str_contains($combined, 'sisimple') || str_contains($combined, 'indosat') || str_contains($combined, 'im3') || str_contains($combined, 'isat')) {
             return 'voucher/sisimple indosat (Indosat)';
         }
-        if (str_contains($combined, 'sidompul')) {
-            return 'sidompul xl (XL)';
-        }
-        if (str_contains($combined, 'xl')) {
+        if (str_contains($combined, 'sidompul') || str_contains($combined, 'xl')) {
+            if ($isPls) {
+                return 'sidompul xl (XL)';
+            }
             if (str_contains($combined, 'voucher') || str_contains($combined, 'vcr') || str_starts_with($combined, 'v')) {
                 return 'voucher xl';
             }
             return 'sidompul xl (XL)';
         }
         if (str_contains($combined, 'telkomsel') || str_contains($combined, 'tsel') || str_contains($combined, 'digipos')) {
+            if ($isPls) {
+                return 'digipost (Telkomsel)';
+            }
             if (str_contains($combined, 'voucher') || str_contains($combined, 'vcr')) {
                 return 'voucher telkomsel';
             }

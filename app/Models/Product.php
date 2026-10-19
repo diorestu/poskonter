@@ -70,7 +70,11 @@ class Product extends Model
 
     public function isPulsa(): bool
     {
-        return $this->product_type === 'pulsa' || $this->provider_id !== null;
+        $code = strtoupper(trim($this->code ?? ''));
+
+        return $this->product_type === 'pulsa'
+            || $this->provider_id !== null
+            || str_starts_with($code, 'PLS');
     }
 
     public function isPerdana(): bool

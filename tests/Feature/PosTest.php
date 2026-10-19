@@ -1418,6 +1418,87 @@ class PosTest extends TestCase
         $this->assertNotNull($cancelledSale);
         $this->assertEquals('cancelled', $cancelledSale['status']);
     }
+
+    public function test_transaction_with_pls_code_is_recorded_under_digipost_and_not_voucher_telkomsel(): void
+    {
+        $this->signIn('admin');
+
+        $provider = Provider::create(['name' => 'TELKOMSEL']);
+        $wallet = Wallet::create([
+            'name' => 'Digipos Dompet',
+            'balance' => 200000,
+            'is_active' => true,
+        ]);
+
+        // Product with word "Voucher" in its name and category, but sold as pulsa elektrik with PLS code
+        $electricVoucherProduct = Product::create([
+            'code' => 'PLS-TSEL-VCR14',
+            'name' => 'Voucher Telkomsel 14GB Inject Data',
+            'product_type' => 'pulsa',
+            'provider_id' => $provider->id,
+            'category' => 'Voucher Telkomsel',
+            'variant' => '14GB',
+            'unit' => 'trx',
+            'price' => 50000,
+            'cost_price' => 45000,
+            'stock' => 0,
+            'is_active' => true,
+        ]);
+        $electricVoucherProduct->wallets()->attach($wallet->id);
+
+        $this->assertTrue($electricVoucherProduct->isPulsa());
+        $this->assertFalse($electricVoucherProduct->isVoucher());
+
+        // Create an electric sale (has reference starting with PLS-)
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'PLS-20261019-1234',
+            'sale_date' => now(),
+            'product_id' => $electricVoucherProduct->id,
+            'wallet_id' => $wallet->id,
+            'customer_name' => 'Rian',
+            'target_number' => '081234567890',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 50000,
+            'cost_amount' => 45000,
+            'cash_paid' => 50000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        $today = now()->toDateString();
+        $response = $this->getJson("/ajax/report/data?start_date={$today}&end_date={$today}");
+
+        $response->assertOk();
+
+        // 1. Verify in the 14 Paper Table (voucher_pulsa in shift pagi)
+        $pagiVoucherPulsa = collect($response->json('shifts.pagi.voucher_pulsa'));
+
+        $digipostRow = $pagiVoucherPulsa->firstWhere('name', 'digipost (Telkomsel)');
+        $voucherTelkomselRow = $pagiVoucherPulsa->firstWhere('name', 'voucher telkomsel');
+
+        $this->assertNotNull($digipostRow);
+        $this->assertNotNull($voucherTelkomselRow);
+
+        // MUST be recorded in digipost (Telkomsel)
+        $this->assertEquals(1, $digipostRow['qty']);
+        $this->assertEquals(50000, $digipostRow['total']);
+
+        // MUST NOT be recorded in voucher telkomsel
+        $this->assertEquals(0, $voucherTelkomselRow['qty']);
+        $this->assertEquals(0, $voucherTelkomselRow['total']);
+
+        // 2. Verify in details
+        $response->assertJsonPath('summary.total_pulsa_count', 1)
+            ->assertJsonPath('summary.total_pulsa_sales', 50000)
+            ->assertJsonPath('summary.total_voucher_count', 0)
+            ->assertJsonPath('summary.total_voucher_sales', 0)
+            ->assertJsonCount(1, 'details.pulsa')
+            ->assertJsonCount(0, 'details.vouchers');
+
+        $this->assertEquals('PLS-20261019-1234', $response->json('details.pulsa.0.reference_number'));
+        $this->assertEquals('TELKOMSEL', $response->json('details.pulsa.0.provider'));
+    }
 }
 
 
