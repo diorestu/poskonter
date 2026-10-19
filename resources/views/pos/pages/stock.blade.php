@@ -2,7 +2,7 @@
 
 @section('content')
     <section class="pane">
-        <!-- Banner Peringatan Kadaluarsa Produk -->
+        <!-- Banner Peringatan Kadaluarsa Voucher & Kartu Perdana -->
         <div id="stockExpiringBanner" class="hidden m-4 mb-0 rounded-xl border border-amber-300 bg-amber-50 p-3.5 sm:p-4 text-xs">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-2.5">
@@ -10,8 +10,8 @@
                         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                     </div>
                     <div>
-                        <strong class="font-semibold text-amber-900 block" id="stockExpiringTitle">Peringatan Kadaluarsa Produk</strong>
-                        <span class="text-amber-800" id="stockExpiringDesc">Terdapat beberapa unit stok yang mendekati masa kadaluarsa (&le; 30 hari) atau sudah kadaluarsa.</span>
+                        <strong class="font-semibold text-amber-900 block" id="stockExpiringTitle">Peringatan Kadaluarsa Voucher & Kartu Perdana</strong>
+                        <span class="text-amber-800" id="stockExpiringDesc">Terdapat unit voucher fisik & kartu perdana yang mendekati masa kadaluarsa (&le; 30 hari) atau sudah kadaluarsa.</span>
                     </div>
                 </div>
                 <button type="button" class="btn btn-secondary border-amber-300 bg-white text-amber-900 hover:bg-amber-100 py-1.5 px-3 text-xs font-semibold" id="openStockExpiringModal">
@@ -63,11 +63,6 @@
                         </button>
                     </div>
                 </form>
-
-                <div class="list-panel p-4">
-                    <div class="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">5 Pergerakan Stok Terakhir</div>
-                    <div id="stockMovementList" class="space-y-2"></div>
-                </div>
             </div>
 
             <div class="list-panel p-4">
@@ -294,9 +289,9 @@
                 <div>
                     <h3 class="font-semibold text-sm text-amber-900 flex items-center gap-1.5">
                         <svg class="h-4 w-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                        Daftar Produk Kadaluarsa & Mendekati Kadaluarsa (&le; 30 Hari)
+                        Daftar Voucher & Kartu Perdana Kadaluarsa (&le; 30 Hari)
                     </h3>
-                    <p class="text-[11px] text-[color:var(--muted)]">Daftar item stok yang memerlukan penanganan khusus sebelum atau sesudah tanggal kadaluarsa.</p>
+                    <p class="text-[11px] text-[color:var(--muted)]">Daftar item voucher fisik & kartu perdana yang memerlukan penanganan khusus sebelum atau sesudah tanggal kadaluarsa.</p>
                 </div>
                 <button type="button" class="btn-icon text-[color:var(--muted)] hover:text-[color:var(--text)] close-expiring-modal">
                     <svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
@@ -308,6 +303,7 @@
                         <thead class="text-left sticky top-0 bg-[#f8fafc] z-10">
                             <tr>
                                 <th>Produk</th>
+                                <th>Tipe</th>
                                 <th>Serial Number</th>
                                 <th>Sisa Qty</th>
                                 <th>Tgl Kadaluarsa</th>
@@ -331,6 +327,7 @@
 
             const stockTable = helpers.createTableController({
                 perPage: 10,
+                maxPageButtons: 5,
                 defaultSortKey: 'name',
                 search: (product, query) => [product.name, product.code, product.serial_number || ''].some((value) => String(value || '').toLowerCase().includes(query)),
                 sorters: {
@@ -459,14 +456,14 @@
                     const expiredCount = state.expiringProducts.filter((p) => p.is_expired).length;
                     const soonCount = state.expiringProducts.length - expiredCount;
 
-                    let desc = `Terdapat ${state.expiringProducts.length} item stok yang kadaluarsa atau mendekati kadaluarsa (&le; 30 hari).`;
+                    let desc = `Terdapat ${state.expiringProducts.length} voucher & kartu perdana yang kadaluarsa atau mendekati kadaluarsa (&le; 30 hari).`;
                     if (expiredCount > 0 && soonCount > 0) {
-                        desc = `${expiredCount} item SUDAH KADALUARSA, dan ${soonCount} item akan kadaluarsa dalam 30 hari ke depan.`;
+                        desc = `${expiredCount} voucher/perdana SUDAH KADALUARSA, dan ${soonCount} item akan kadaluarsa dalam 30 hari ke depan.`;
                     } else if (expiredCount > 0) {
-                        desc = `${expiredCount} item SUDAH KADALUARSA! Harap segera periksa atau sesuaikan stok.`;
+                        desc = `${expiredCount} voucher/perdana SUDAH KADALUARSA! Harap segera periksa atau sesuaikan stok.`;
                     }
 
-                    $('#stockExpiringTitle').html(`⚠️ Peringatan Kadaluarsa Produk (${state.expiringProducts.length} Item)`);
+                    $('#stockExpiringTitle').html(`⚠️ Peringatan Kadaluarsa Voucher & Kartu Perdana (${state.expiringProducts.length} Item)`);
                     $('#stockExpiringDesc').html(desc);
                     $('#stockExpiringBanner').removeClass('hidden');
                 } else {
@@ -482,6 +479,11 @@
                             <div class="font-medium">${item.product_name}</div>
                             <div class="text-[11px] text-[color:var(--muted)]">${item.product_code} · ${item.variant || '-'}</div>
                         </td>
+                        <td>
+                            <span class="badge ${item.item_type === 'Kartu Perdana' ? 'badge-info' : 'badge-primary'} font-semibold text-[11px]">
+                                ${item.item_type || 'Voucher'}
+                            </span>
+                        </td>
                         <td class="font-mono text-xs font-semibold">${item.serial_number || '<span class="text-[color:var(--muted)] font-normal">Non-Serial</span>'}</td>
                         <td class="font-bold text-center">${item.quantity}</td>
                         <td class="font-mono">${item.expiry_date || '-'}</td>
@@ -496,7 +498,7 @@
                             </button>
                         </td>
                     </tr>
-                `).join('') : '<tr><td colspan="6" class="text-center py-6 text-[color:var(--muted)]">Tidak ada produk yang kadaluarsa.</td></tr>');
+                `).join('') : '<tr><td colspan="7" class="text-center py-6 text-[color:var(--muted)]">Tidak ada voucher & kartu perdana yang kadaluarsa.</td></tr>');
             }
 
             function renderSearchList() {
@@ -522,35 +524,11 @@
                 renderSearchList();
             }
 
-            function renderMovements(items) {
-                const movements = (items || []).slice(0, 5);
-                $('#stockMovementList').html(movements.length ? movements.map((item) => {
-                    const createdDate = item.created_at ? new Date(item.created_at).toLocaleString('id-ID') : '-';
-                    const expiryDate = item.expiry_date ? `Expiry ${new Date(item.expiry_date).toLocaleDateString('id-ID')}` : 'Tanpa expiry';
-                    return `
-                        <div class="border border-[#d8e1ec] rounded-xl bg-white px-3 py-2">
-                            <div class="flex items-center justify-between gap-3">
-                                <div>
-                                    <div class="font-semibold">${item.product?.name ?? '-'}</div>
-                                    <div class="text-[11px] text-[color:var(--muted)]">${item.note ?? '-'}</div>
-                                    <div class="text-[11px] text-[color:var(--muted)]">${item.serial_number ? `SN ${item.serial_number}` : 'Tanpa serial'} · ${expiryDate} · Modal ${money(item.cost_price || 0)}</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="font-semibold">${item.type === 'in' ? '+' : '-'}${item.quantity}</div>
-                                    <div class="text-[11px] text-[color:var(--muted)]">${createdDate}</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('') : '<div class="text-[color:var(--muted)]">Belum ada riwayat stok.</div>');
-            }
-
             function loadData() {
                 $.getJSON(window.posConfig.dashboardUrl, { _: Date.now() })
                     .done((response) => {
                         try {
                             renderProducts(response.products || []);
-                            renderMovements((response.stock_movements || []).filter((item) => item && item.product));
                             renderExpiringAlert(response.expiring_products || []);
                         } catch (err) {
                             console.error('Error rendering stock data:', err);
@@ -700,7 +678,10 @@
             });
 
             $(document).on('click', '#stockPagination .page-btn', function () {
-                stockTable.setPage(Number($(this).data('page')));
+                if ($(this).prop('disabled') || $(this).attr('disabled')) return;
+                const page = Number($(this).data('page'));
+                if (!page) return;
+                stockTable.setPage(page);
                 drawTable(stockTable.pagedRows());
             });
 

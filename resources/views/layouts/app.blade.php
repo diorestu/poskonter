@@ -222,7 +222,7 @@
                                         pagedRows() {
                                             const rows = this.sortedRows();
                                             const totalPages = Math.max(1, Math.ceil(rows.length / this.perPage));
-                                            this.page = Math.min(this.page, totalPages);
+                                            this.page = Math.max(1, Math.min(this.page, totalPages));
                                             const start = (this.page - 1) * this.perPage;
                                             return {
                                                 rows: rows.slice(start, start + this.perPage),
@@ -234,14 +234,38 @@
                                             };
                                         },
                                         renderFooter(targetSelector, meta) {
+                                            const maxVisible = config.maxPageButtons || 5;
+                                            let startPage = Math.max(1, meta.page - Math.floor(maxVisible / 2));
+                                            let endPage = startPage + maxVisible - 1;
+
+                                            if (endPage > meta.totalPages) {
+                                                endPage = meta.totalPages;
+                                                startPage = Math.max(1, endPage - maxVisible + 1);
+                                            }
+
                                             const buttons = [];
-                                            for (let page = 1; page <= meta.totalPages; page += 1) {
+
+                                            const prevDisabled = meta.page <= 1;
+                                            buttons.push(`
+                                                <button type="button" class="page-btn page-btn-prev px-2.5 text-xs ${prevDisabled ? 'opacity-40 cursor-not-allowed' : ''}" data-page="${meta.page - 1}" data-target="${targetSelector}" ${prevDisabled ? 'disabled' : ''}>
+                                                    Previous
+                                                </button>
+                                            `);
+
+                                            for (let page = startPage; page <= endPage; page += 1) {
                                                 buttons.push(`
                                                     <button type="button" class="page-btn ${page === meta.page ? 'page-btn-active' : ''}" data-page="${page}" data-target="${targetSelector}">
                                                         ${page}
                                                     </button>
                                                 `);
                                             }
+
+                                            const nextDisabled = meta.page >= meta.totalPages;
+                                            buttons.push(`
+                                                <button type="button" class="page-btn page-btn-next px-2.5 text-xs ${nextDisabled ? 'opacity-40 cursor-not-allowed' : ''}" data-page="${meta.page + 1}" data-target="${targetSelector}" ${nextDisabled ? 'disabled' : ''}>
+                                                    Next
+                                                </button>
+                                            `);
 
                                             $(targetSelector).html(`
                                                 <div class="table-footer">

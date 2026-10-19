@@ -40,11 +40,13 @@
                                 <th>Rincian Item (Produk, Qty, Serial)</th>
                                 <th data-sort="payment_method">Pembayaran</th>
                                 <th data-sort="total" class="text-right">Total Transaksi</th>
+                                <th data-sort="status" class="text-center">Status</th>
+                                <th class="text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="posHistoryBody">
                             <tr>
-                                <td colspan="7" class="text-center py-6 text-[color:var(--muted)]">Memuat data transaksi POS...</td>
+                                <td colspan="9" class="text-center py-6 text-[color:var(--muted)]">Memuat data transaksi POS...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -73,8 +75,8 @@
                                 <th data-sort="serial_number">Serial / SN</th>
                                 <th data-sort="wallet">Dompet</th>
                                 <th data-sort="price">Harga Jual</th>
-                                <th data-sort="status">Status</th>
-                                <th width="140">Aksi</th>
+                                <th data-sort="status" class="text-center">Status</th>
+                                <th width="140" class="text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="pulsaHistoryBody">
@@ -98,6 +100,7 @@
                 historyData: @json(route('ajax.sales.history-data')),
                 pulsaSuccess: @json(url('/ajax/pulsa/sales/__ID__/success')),
                 pulsaCancel: @json(url('/ajax/pulsa/sales/__ID__/cancel')),
+                posCancel: @json(url('/ajax/sales/__ID__/cancel')),
             };
 
             function paymentBadge(method) {
@@ -106,6 +109,7 @@
                     qris: '<span class="badge badge-info">QRIS</span>',
                     transfer: '<span class="badge badge-warning">Transfer</span>',
                     debit: '<span class="badge badge-info">Debit</span>',
+                    utang: '<span class="badge badge-danger-soft">Utang</span>',
                 };
                 return map[method] || `<span class="badge">${method}</span>`;
             }
@@ -117,8 +121,8 @@
             }
 
             function statusBadge(status) {
-                if (status === 'success') return '<span class="badge badge-ok">Sukses</span>';
-                if (status === 'cancelled') return '<span class="badge badge-danger-soft">Cancelled</span>';
+                if (status === 'success' || status === 'completed') return '<span class="badge badge-ok">Sukses</span>';
+                if (status === 'cancelled') return '<span class="badge border border-red-300 bg-red-100 text-red-700">Dibatalkan</span>';
                 return '<span class="badge badge-warning">Pending</span>';
             }
 
@@ -130,7 +134,7 @@
                 search: (item, query) => {
                     const itemNames = (item.items || []).map((si) => si.product?.name || '').join(' ');
                     const itemSerials = (item.items || []).map((si) => si.serial_number || '').join(' ');
-                    return [item.invoice_number, item.customer_name || '', item.payment_method || '', item.shift || '', itemNames, itemSerials].some((value) => String(value || '').toLowerCase().includes(query));
+                    return [item.invoice_number, item.customer_name || '', item.payment_method || '', item.shift || '', item.status || '', itemNames, itemSerials].some((value) => String(value || '').toLowerCase().includes(query));
                 },
                 sorters: {
                     invoice_number: (item) => item.invoice_number,
@@ -139,6 +143,7 @@
                     customer_name: (item) => item.customer_name || '',
                     payment_method: (item) => item.payment_method || '',
                     total: (item) => Number(item.total),
+                    status: (item) => item.status || 'completed',
                 },
             });
 
@@ -165,8 +170,9 @@
                 $('#posHistoryBody').html(meta.rows.length ? meta.rows.map((item) => {
                     const saleDate = item.sale_date ? new Date(item.sale_date).toLocaleString('id-ID') : '-';
                     const items = item.items || [];
+                    const isCancelled = item.status === 'cancelled';
                     return `
-                        <tr>
+                        <tr class="${isCancelled ? 'opacity-60 bg-slate-50' : ''}">
                             <td class="font-bold font-mono text-blue-700">${item.invoice_number}</td>
                             <td class="whitespace-nowrap">${saleDate}</td>
                             <td>${shiftBadge(item.shift)}</td>
@@ -192,45 +198,58 @@
                                 ${item.discount > 0 ? `<div class="text-[10px] text-red-500 font-normal">Diskon ${money(item.discount)}</div>` : ''}
                                 <div class="text-[10px] text-[color:var(--muted)] font-normal">Bayar ${money(item.cash_paid)}</div>
                             </td>
+                            <td class="text-center">${statusBadge(item.status || 'completed')}</td>
+                            <td class="text-right whitespace-nowrap">
+                                ${!isCancelled ? `
+                                    <button type="button" class="btn btn-danger py-1 px-2.5 text-xs cancel-pos-sale" data-id="${item.id}" data-invoice="${item.invoice_number}" title="Batalkan Transaksi POS & Kembalikan Stok">
+                                        <span>Batalkan</span>
+                                    </button>
+                                ` : '<span class="text-[11px] text-[color:var(--muted)] font-normal">Dibatalkan</span>'}
+                            </td>
                         </tr>
                     `;
-                }).join('') : '<tr><td colspan="7" class="text-center py-6 text-[color:var(--muted)]">Belum ada transaksi penjualan fisik / voucher.</td></tr>');
+                }).join('') : '<tr><td colspan="9" class="text-center py-6 text-[color:var(--muted)]">Belum ada transaksi penjualan fisik / voucher.</td></tr>');
                 posTable.syncSortUi('#posHistoryTable thead');
                 posTable.renderFooter('#posHistoryPagination', meta);
             }
 
             function drawPulsaTable(meta) {
-                $('#pulsaHistoryBody').html(meta.rows.length ? meta.rows.map((item) => `
-                    <tr>
-                        <td class="font-bold font-mono text-blue-700">${item.reference_number}</td>
-                        <td class="whitespace-nowrap">${new Date(item.sale_date).toLocaleString('id-ID')}</td>
-                        <td><span class="badge badge-info">${item.product?.category || '-'}</span></td>
-                        <td>
-                            <div class="font-medium">${item.product?.name || '-'}</div>
-                            <div class="text-[11px] text-[color:var(--muted)]">${item.product?.variant || item.product?.category || '-'}</div>
-                        </td>
-                        <td class="font-mono">${item.target_number}</td>
-                        <td><span class="text-[11px] font-mono">${item.serial_number || '-'}</span></td>
-                        <td>${item.wallet?.name || '-'}</td>
-                        <td>
-                            <div class="font-semibold text-emerald-700">${money(item.price)}</div>
-                            <div class="text-[10px] text-[color:var(--muted)]">Modal ${money(item.cost_amount)}</div>
-                        </td>
-                        <td>${statusBadge(item.status)}</td>
-                        <td>
-                            <div class="flex gap-1.5">
-                                ${item.status === 'pending' ? `
-                                    <button type="button" class="btn btn-secondary py-1 px-2 text-xs mark-pulsa-success" data-id="${item.id}">
-                                        <span>Sukses</span>
-                                    </button>
-                                    <button type="button" class="btn btn-danger py-1 px-2 text-xs cancel-pulsa-sale" data-id="${item.id}">
-                                        <span>Cancel</span>
-                                    </button>
-                                ` : '<span class="text-[11px] text-[color:var(--muted)]">-</span>'}
-                            </div>
-                        </td>
-                    </tr>
-                `).join('') : '<tr><td colspan="10" class="text-center py-6 text-[color:var(--muted)]">Belum ada transaksi pulsa.</td></tr>');
+                $('#pulsaHistoryBody').html(meta.rows.length ? meta.rows.map((item) => {
+                    const isCancelled = item.status === 'cancelled';
+                    return `
+                        <tr class="${isCancelled ? 'opacity-60 bg-slate-50' : ''}">
+                            <td class="font-bold font-mono text-blue-700">${item.reference_number}</td>
+                            <td class="whitespace-nowrap">${new Date(item.sale_date).toLocaleString('id-ID')}</td>
+                            <td><span class="badge badge-info">${item.product?.category || '-'}</span></td>
+                            <td>
+                                <div class="font-medium">${item.product?.name || '-'}</div>
+                                <div class="text-[11px] text-[color:var(--muted)]">${item.product?.variant || item.product?.category || '-'}</div>
+                            </td>
+                            <td class="font-mono">${item.target_number}</td>
+                            <td><span class="text-[11px] font-mono">${item.serial_number || '-'}</span></td>
+                            <td>${item.wallet?.name || '-'}</td>
+                            <td>
+                                <div class="font-semibold text-emerald-700">${money(item.price)}</div>
+                                <div class="text-[10px] text-[color:var(--muted)]">Modal ${money(item.cost_amount)}</div>
+                            </td>
+                            <td class="text-center">${statusBadge(item.status)}</td>
+                            <td class="text-right whitespace-nowrap">
+                                <div class="inline-flex items-center justify-end gap-1.5">
+                                    ${item.status === 'pending' ? `
+                                        <button type="button" class="btn btn-secondary py-1 px-2 text-xs mark-pulsa-success" data-id="${item.id}" title="Tandai Sukses">
+                                            <span>Sukses</span>
+                                        </button>
+                                    ` : ''}
+                                    ${!isCancelled ? `
+                                        <button type="button" class="btn btn-danger py-1 px-2.5 text-xs cancel-pulsa-sale" data-id="${item.id}" data-ref="${item.reference_number}" data-wallet="${item.wallet?.name || ''}" title="Batalkan Transaksi & Kembalikan Saldo">
+                                            <span>Batalkan</span>
+                                        </button>
+                                    ` : '<span class="text-[11px] text-[color:var(--muted)] font-normal">Dibatalkan</span>'}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('') : '<tr><td colspan="10" class="text-center py-6 text-[color:var(--muted)]">Belum ada transaksi pulsa.</td></tr>');
                 pulsaTable.syncSortUi('#pulsaHistoryTable thead');
                 pulsaTable.renderFooter('#pulsaHistoryPagination', meta);
             }
@@ -309,10 +328,30 @@
             });
 
             $(document).on('click', '.cancel-pulsa-sale', function () {
-                const reason = window.prompt('Catatan cancel transaksi:', 'Pulsa tidak masuk / gangguan server');
+                const ref = $(this).data('ref') || 'transaksi ini';
+                const wallet = $(this).data('wallet');
+                const promptMsg = wallet
+                    ? `Batalkan transaksi ${ref}?\nSaldo modal akan otomatis dikembalikan ke dompet: ${wallet}.\n\nMasukkan catatan pembatalan (opsional):`
+                    : `Batalkan transaksi ${ref}?\n\nMasukkan catatan pembatalan (opsional):`;
+                const reason = window.prompt(promptMsg, 'Pulsa tidak masuk / gangguan server');
                 if (reason === null) return;
 
                 $.post(urls.pulsaCancel.replace('__ID__', $(this).data('id')), {
+                    notes: reason,
+                }).done((response) => {
+                    showAlert(response.message);
+                    loadData();
+                }).fail((xhr) => {
+                    showAlert(xhr.responseJSON?.message || 'Gagal membatalkan transaksi.', 'error');
+                });
+            });
+
+            $(document).on('click', '.cancel-pos-sale', function () {
+                const invoice = $(this).data('invoice') || 'transaksi ini';
+                const reason = window.prompt(`Batalkan transaksi ${invoice}?\nStok produk akan otomatis dikembalikan.\n\nMasukkan catatan pembatalan (opsional):`, 'Pembatalan transaksi');
+                if (reason === null) return;
+
+                $.post(urls.posCancel.replace('__ID__', $(this).data('id')), {
                     notes: reason,
                 }).done((response) => {
                     showAlert(response.message);

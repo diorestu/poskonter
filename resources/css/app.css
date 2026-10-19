@@ -810,17 +810,27 @@
     .page-btn {
         min-width: 32px;
         height: 32px;
+        padding: 0 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border: 1px solid var(--line);
         border-radius: 6px;
         background: #ffffff;
         color: var(--text);
         font-weight: 500;
+        font-size: 12px;
         transition: all 120ms ease;
     }
 
-    .page-btn:hover {
+    .page-btn:hover:not(:disabled) {
         background: #f8fafc;
         border-color: #cbd5e1;
+    }
+
+    .page-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
     }
 
     .page-btn-active {

@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function (): void {
             Route::put('/products/{product}/update-serial', [PosController::class, 'updateProductSerial'])->name('products.update-serial');
             Route::post('/sales', [PosController::class, 'storeSale'])->name('sales.store');
             Route::get('/sales/history-data', [PosController::class, 'salesHistory'])->name('sales.history-data');
+            Route::post('/sales/{sale}/cancel', [PosController::class, 'cancelSale'])->name('sales.cancel');
             Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
             Route::get('/pulsa/dashboard', [PulsaController::class, 'dashboard'])->name('pulsa.dashboard');
             Route::post('/pulsa/sales', [PulsaController::class, 'storeSale'])->name('pulsa.sales.store');

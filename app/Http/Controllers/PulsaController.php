@@ -373,13 +373,41 @@ class PulsaController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($pulsaSale, $validated): void {
-            $wallet = Wallet::query()->lockForUpdate()->findOrFail($pulsaSale->wallet_id);
-            $wallet->increment('balance', $pulsaSale->cost_amount);
+        $message = DB::transaction(function () use ($pulsaSale, $validated): string {
+            $refundedWallet = null;
+
+            // Jika produk elektrik atau ada wallet_id terkait, kembalikan saldo ke dompet
+            if ($pulsaSale->wallet_id && (float) $pulsaSale->cost_amount > 0) {
+                $wallet = Wallet::query()->lockForUpdate()->find($pulsaSale->wallet_id);
+                if ($wallet) {
+                    $wallet->increment('balance', $pulsaSale->cost_amount);
+                    $refundedWallet = $wallet;
+                }
+            }
+
+            // Jika produk fisik/voucher yang memotong stok, kembalikan stok
+            $product = $pulsaSale->product;
+            if ($product && ! $product->isPulsa()) {
+                $product->increment('stock', 1);
+
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'type' => 'adjustment',
+                    'quantity' => 1,
+                    'serial_number' => $pulsaSale->serial_number,
+                    'cost_price' => $pulsaSale->cost_amount,
+                    'note' => 'Pembatalan Transaksi ' . $pulsaSale->reference_number,
+                ]);
+            }
+
+            // Jika transaksi terikat dengan catatan utang, batalkan utang terkait
+            Debt::where('pulsa_sale_id', $pulsaSale->id)->update([
+                'status' => 'cancelled',
+            ]);
 
             $note = trim(implode(' | ', array_filter([
                 $pulsaSale->notes,
-                $validated['notes'] ?? 'Dibatalkan karena gangguan atau pulsa tidak masuk',
+                $validated['notes'] ?? 'Dibatalkan',
             ])));
 
             $pulsaSale->update([
@@ -387,10 +415,16 @@ class PulsaController extends Controller
                 'cancelled_at' => now(),
                 'notes' => $note,
             ]);
+
+            if ($refundedWallet) {
+                return 'Transaksi ' . $pulsaSale->reference_number . ' dibatalkan. Saldo modal Rp ' . number_format($pulsaSale->cost_amount, 0, ',', '.') . ' telah dikembalikan ke ' . $refundedWallet->name . '.';
+            }
+
+            return 'Transaksi ' . $pulsaSale->reference_number . ' berhasil dibatalkan.';
         });
 
         return response()->json([
-            'message' => 'Penjualan pulsa dibatalkan dan saldo dompet dikembalikan.',
+            'message' => $message,
             'sale' => $pulsaSale->fresh(['product:id,name,variant,category', 'wallet:id,name']),
         ]);
     }

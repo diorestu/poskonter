@@ -77,6 +77,7 @@ class PosController extends Controller
     {
         $sales = Sale::query()
             ->with(['items.product'])
+            ->where('status', '!=', 'cancelled')
             ->whereDate('sale_date', '>=', $startDate)
             ->whereDate('sale_date', '<=', $endDate)
             ->orderBy('sale_date', 'asc')
@@ -290,9 +291,12 @@ class PosController extends Controller
         $detailedPulsa = [];
         $detailedAccessories = [];
 
-        // 1. Detailed Vouchers from PulsaSale
+        // 1. Detailed Vouchers & Pulsa from PulsaSale
         foreach ($pulsaSales as $ps) {
-            $isVcr = str_starts_with($ps->reference_number ?? '', 'VCR-') || $this->isVoucher($ps->product);
+            $ref = $ps->reference_number ?? '';
+            $isPls = str_starts_with($ref, 'PLS-') || $this->isPulsaElektrik($ps->product);
+            $isVcr = ! $isPls && (str_starts_with($ref, 'VCR-') || $this->isVoucher($ps->product));
+
             if ($isVcr) {
                 $detailedVouchers[] = [
                     'id' => 'VCR-' . $ps->id,
@@ -334,7 +338,7 @@ class PosController extends Controller
             }
         }
 
-        // 2. Detailed Vouchers & Accessories from POS Sales
+        // 2. Detailed Vouchers, Pulsa & Accessories from POS Sales
         foreach ($sales as $s) {
             foreach ($s->items as $item) {
                 if ($this->isVoucher($item->product)) {
@@ -372,6 +376,25 @@ class PosController extends Controller
                         'price' => (float) $item->price,
                         'subtotal' => (float) ($item->subtotal ?? ($item->price * $item->quantity)),
                         'payment_method' => strtolower($s->payment_method ?: 'cash'),
+                    ];
+                } else {
+                    $detailedPulsa[] = [
+                        'id' => 'POS-PLS-' . $s->id . '-' . $item->id,
+                        'reference_number' => $s->invoice_number,
+                        'date' => $s->sale_date ? $s->sale_date->format('d/m/Y H:i') : '-',
+                        'date_raw' => $s->sale_date?->toISOString(),
+                        'shift' => strtolower($s->shift ?: 'pagi'),
+                        'provider' => $item->product?->category ?: ($item->product?->provider?->name ?: 'Elektrik'),
+                        'product_name' => $item->product?->name ?: 'Pulsa',
+                        'target_number' => '-',
+                        'serial_number' => $item->serial_number ?: '-',
+                        'wallet_name' => '-',
+                        'customer_name' => $s->customer_name ?: '-',
+                        'price' => (float) ($item->subtotal ?? ($item->price * $item->quantity)),
+                        'cost_price' => (float) ($item->cost_price ?? 0),
+                        'profit' => (float) (($item->subtotal ?? ($item->price * $item->quantity)) - (($item->cost_price ?? 0) * $item->quantity)),
+                        'payment_method' => strtolower($s->payment_method ?: 'cash'),
+                        'status' => 'success',
                     ];
                 }
             }
@@ -473,42 +496,91 @@ class PosController extends Controller
         ];
     }
 
-    public function isVoucher(?Product $product): bool
-    {
-        if (! $product) {
-            return false;
-        }
-        $type = strtolower($product->product_type ?? '');
-        $cat = strtolower($product->category ?? '');
-        $name = strtolower($product->name ?? '');
-
-        return $type === 'voucher'
-            || str_contains($cat, 'voucher')
-            || str_contains($cat, 'perdana')
-            || str_contains($cat, 'kuota')
-            || str_contains($cat, 'data')
-            || str_contains($cat, 'paket')
-            || str_contains($cat, 'internet')
-            || str_starts_with($name, 'voucher')
-            || str_starts_with($name, 'perdana')
-            || str_contains($name, 'voucher')
-            || str_contains($name, 'perdana')
-            || str_contains($name, 'kuota')
-            || str_contains($name, 'paket data');
-    }
-
     public function isPulsaElektrik(?Product $product): bool
     {
         if (! $product) {
             return false;
         }
 
+        if (method_exists($product, 'isPulsa')) {
+            return $product->isPulsa();
+        }
+
         return $product->product_type === 'pulsa' || $product->provider_id !== null;
+    }
+
+    public function isVoucher(?Product $product): bool
+    {
+        if (! $product) {
+            return false;
+        }
+
+        // Electric / Pulsa products MUST NEVER be classified as vouchers
+        if ($this->isPulsaElektrik($product)) {
+            return false;
+        }
+
+        if (method_exists($product, 'isVoucher')) {
+            return $product->isVoucher();
+        }
+
+        $type = strtolower($product->product_type ?? '');
+        $cat = strtolower($product->category ?? '');
+        $name = strtolower($product->name ?? '');
+
+        return $type === 'voucher'
+            || str_contains($cat, 'voucher')
+            || str_contains($cat, 'kuota')
+            || str_contains($cat, 'data')
+            || str_contains($cat, 'paket')
+            || str_contains($cat, 'internet')
+            || str_starts_with($name, 'voucher')
+            || str_contains($name, 'voucher')
+            || str_contains($name, 'kuota')
+            || str_contains($name, 'paket data');
     }
 
     public function isVoucherOrPulsa(?Product $product): bool
     {
         return $this->isVoucher($product) || $this->isPulsaElektrik($product);
+    }
+
+    public function isPerdana(?Product $product): bool
+    {
+        if (! $product) {
+            return false;
+        }
+
+        // Electric / Pulsa products MUST NEVER be classified as perdana
+        if ($this->isPulsaElektrik($product)) {
+            return false;
+        }
+
+        if (method_exists($product, 'isPerdana')) {
+            return $product->isPerdana();
+        }
+
+        $type = strtolower($product->product_type ?? '');
+        $cat = strtolower($product->category ?? '');
+        $name = strtolower($product->name ?? '');
+
+        return str_contains($type, 'perdana')
+            || str_contains($cat, 'perdana')
+            || str_contains($name, 'perdana')
+            || str_contains($name, 'sim card');
+    }
+
+    public function isVoucherOrPerdana(?Product $product): bool
+    {
+        if (! $product) {
+            return false;
+        }
+
+        if (method_exists($product, 'isVoucherOrPerdana')) {
+            return $product->isVoucherOrPerdana();
+        }
+
+        return $this->isVoucher($product) || $this->isPerdana($product);
     }
 
     private function resolveVoucherPulsaGroupName(?string $walletName, ?string $providerName, ?string $category, ?string $productName): string
@@ -599,9 +671,9 @@ class PosController extends Controller
             'total_products' => Product::count(),
             'low_stock_count' => Product::where('product_type', '!=', 'pulsa')->whereColumn('stock', '<=', 'minimum_stock')->count(),
             'expiring_count' => count($expiringProducts),
-            'today_sales_total' => (float) Sale::whereDate('sale_date', today())->sum('total'),
+            'today_sales_total' => (float) Sale::where('status', '!=', 'cancelled')->whereDate('sale_date', today())->sum('total'),
             'today_expenses_total' => (float) Expense::whereDate('expense_date', today())->sum('amount'),
-            'today_transactions' => Sale::whereDate('sale_date', today())->count(),
+            'today_transactions' => Sale::where('status', '!=', 'cancelled')->whereDate('sale_date', today())->count(),
         ];
 
         $products = Product::query()
@@ -639,7 +711,7 @@ class PosController extends Controller
         $cutoff = $today->copy()->addDays($daysThreshold);
 
         $movements = StockMovement::query()
-            ->with('product:id,name,code,variant,unit,stock,is_active,product_type')
+            ->with('product:id,name,code,variant,unit,stock,is_active,product_type,category')
             ->whereIn('type', ['in', 'adjustment'])
             ->whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<=', $cutoff)
@@ -687,6 +759,11 @@ class PosController extends Controller
                 continue;
             }
 
+            // Expiry alert applies specifically to voucher and kartu perdana
+            if (!$this->isVoucherOrPerdana($prod)) {
+                continue;
+            }
+
             if (!isset($productRemainingStock[$prod->id])) {
                 $productRemainingStock[$prod->id] = (int) $prod->stock;
             }
@@ -723,6 +800,9 @@ class PosController extends Controller
                     ? 'Sudah expired ' . abs($days) . ' hari lalu'
                     : ($days === 0 ? 'Expired hari ini' : 'Expired dalam ' . $days . ' hari');
 
+                $isPerdana = $this->isPerdana($prod);
+                $itemType = $isPerdana ? 'Kartu Perdana' : 'Voucher';
+
                 $expiring[] = [
                     'id' => $m->id,
                     'product_id' => $prod->id,
@@ -730,6 +810,7 @@ class PosController extends Controller
                     'product_code' => $prod->code,
                     'variant' => $prod->variant,
                     'product_type' => $prod->product_type,
+                    'item_type' => $itemType,
                     'serial_number' => $sn ?: null,
                     'quantity' => $remaining,
                     'expiry_date' => $m->expiry_date ? $m->expiry_date->format('Y-m-d') : null,
@@ -1498,6 +1579,60 @@ class PosController extends Controller
         return response()->json([
             'pos_sales' => $physicalSales,
             'pulsa_sales' => $pulsaSales,
+        ]);
+    }
+
+    public function cancelSale(Request $request, Sale $sale): JsonResponse
+    {
+        $validated = $request->validate([
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($sale->status === 'cancelled') {
+            throw ValidationException::withMessages([
+                'status' => 'Transaksi ini sudah dibatalkan sebelumnya.',
+            ]);
+        }
+
+        DB::transaction(function () use ($sale, $validated): void {
+            $sale->loadMissing(['items.product']);
+
+            // Kembalikan stok untuk seluruh item dalam transaksi
+            foreach ($sale->items as $item) {
+                if ($item->product) {
+                    $item->product->increment('stock', $item->quantity);
+
+                    StockMovement::create([
+                        'product_id' => $item->product->id,
+                        'type' => 'adjustment',
+                        'quantity' => $item->quantity,
+                        'serial_number' => $item->serial_number,
+                        'cost_price' => $item->product->cost_price ?? 0,
+                        'note' => 'Pembatalan Transaksi POS ' . $sale->invoice_number,
+                    ]);
+                }
+            }
+
+            // Batalkan utang terkait jika transaksi dibayar dengan utang
+            Debt::where('sale_id', $sale->id)->update([
+                'status' => 'cancelled',
+            ]);
+
+            $note = trim(implode(' | ', array_filter([
+                $sale->notes,
+                $validated['notes'] ?? 'Dibatalkan',
+            ])));
+
+            $sale->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+                'notes' => $note,
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Transaksi POS ' . $sale->invoice_number . ' berhasil dibatalkan dan stok dikembalikan.',
+            'sale' => $sale->fresh(['items.product']),
         ]);
     }
 

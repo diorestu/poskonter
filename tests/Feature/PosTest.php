@@ -1194,6 +1194,28 @@ class PosTest extends TestCase
             'cost_price' => 10000,
         ]);
 
+        // Product D: Regular accessory expiring in 5 days (non-voucher and non-perdana, should NOT be alerted)
+        $prodD = Product::create([
+            'code' => 'EXP-004',
+            'name' => 'Kabel Data Type-C',
+            'product_type' => 'regular',
+            'category' => 'Aksesoris',
+            'unit' => 'pcs',
+            'price' => 20000,
+            'cost_price' => 12000,
+            'stock' => 10,
+            'minimum_stock' => 2,
+            'is_active' => true,
+        ]);
+        StockMovement::create([
+            'product_id' => $prodD->id,
+            'type' => 'in',
+            'quantity' => 10,
+            'serial_number' => 'KBL-001',
+            'expiry_date' => $today->copy()->addDays(5)->toDateString(),
+            'cost_price' => 12000,
+        ]);
+
         $dashboardResponse = $this->getJson('/ajax/dashboard');
         $dashboardResponse->assertOk()
             ->assertJsonPath('summary.expiring_count', 2)
@@ -1203,9 +1225,198 @@ class PosTest extends TestCase
         $this->assertTrue($expiring->contains('product_code', 'EXP-001'));
         $this->assertTrue($expiring->contains('product_code', 'EXP-003'));
         $this->assertFalse($expiring->contains('product_code', 'EXP-002'));
+        $this->assertFalse($expiring->contains('product_code', 'EXP-004'));
+
+        $itemA = $expiring->firstWhere('product_code', 'EXP-001');
+        $this->assertEquals('Voucher', $itemA['item_type']);
 
         $itemC = $expiring->firstWhere('product_code', 'EXP-003');
         $this->assertTrue($itemC['is_expired']);
+        $this->assertEquals('Kartu Perdana', $itemC['item_type']);
+    }
+
+    public function test_electric_data_package_product_is_not_categorized_as_voucher_in_report(): void
+    {
+        $this->signIn('admin');
+
+        $wallet = Wallet::create(['name' => 'Dompet Indosat', 'balance' => 500000, 'is_active' => true]);
+        $provider = Provider::create(['name' => 'INDOSAT']);
+        $provider->wallets()->attach($wallet->id);
+
+        // Electric data package product containing keywords "Paket Data" and "Kuota"
+        $electricProduct = Product::create([
+            'code' => 'PLS-ISAT-DATA',
+            'name' => 'Paket Data Freedom Internet 10GB',
+            'product_type' => 'pulsa',
+            'provider_id' => $provider->id,
+            'category' => 'Paket Data',
+            'variant' => '10GB',
+            'unit' => 'trx',
+            'price' => 50000,
+            'cost_price' => 45000,
+            'stock' => 0,
+            'is_active' => true,
+        ]);
+
+        $this->assertTrue($electricProduct->isPulsa());
+        $this->assertFalse($electricProduct->isVoucher());
+        $this->assertFalse($electricProduct->isPerdana());
+
+        // Process an electric sale
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'PLS-20261019-999',
+            'sale_date' => now(),
+            'product_id' => $electricProduct->id,
+            'wallet_id' => $wallet->id,
+            'customer_name' => 'Doni',
+            'target_number' => '085712345678',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 50000,
+            'cost_amount' => 45000,
+            'cash_paid' => 50000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        $today = now()->toDateString();
+        $response = $this->getJson("/ajax/report/data?start_date={$today}&end_date={$today}");
+
+        $response->assertOk()
+            ->assertJsonPath('summary.total_pulsa_count', 1)
+            ->assertJsonPath('summary.total_pulsa_sales', 50000)
+            ->assertJsonPath('summary.total_voucher_count', 0)
+            ->assertJsonPath('summary.total_voucher_sales', 0)
+            ->assertJsonCount(1, 'details.pulsa')
+            ->assertJsonCount(0, 'details.vouchers');
+
+        $this->assertEquals('PLS-20261019-999', $response->json('details.pulsa.0.reference_number'));
+        $this->assertEquals('Paket Data Freedom Internet 10GB', $response->json('details.pulsa.0.product_name'));
+    }
+
+    public function test_cancel_electric_pulsa_sale_refunds_wallet_balance_and_shows_in_sales_history(): void
+    {
+        $this->signIn('cashier');
+
+        $wallet = Wallet::create([
+            'name' => 'Dompet Digipos',
+            'balance' => 100000,
+            'is_active' => true,
+        ]);
+
+        $product = Product::create([
+            'code' => 'TSEL-50K',
+            'name' => 'Telkomsel 50K Elektrik',
+            'product_type' => 'pulsa',
+            'category' => 'Telkomsel',
+            'variant' => '50.000',
+            'unit' => 'trx',
+            'price' => 52000,
+            'cost_price' => 48000,
+            'stock' => 0,
+            'is_active' => true,
+        ]);
+        $product->wallets()->attach($wallet->id);
+
+        $saleResponse = $this->postJson('/ajax/pulsa/sales', [
+            'product_id' => $product->id,
+            'wallet_id' => $wallet->id,
+            'target_number' => '081234567899',
+            'payment_method' => 'cash',
+            'cash_paid' => 55000,
+        ]);
+
+        $saleResponse->assertCreated();
+        $saleId = $saleResponse->json('sale.id');
+
+        // Check wallet balance was deducted
+        $this->assertDatabaseHas('wallets', [
+            'id' => $wallet->id,
+            'balance' => 52000, // 100000 - 48000
+        ]);
+
+        // Cancel the sale from sales history
+        $cancelResponse = $this->postJson("/ajax/pulsa/sales/{$saleId}/cancel", [
+            'notes' => 'Nomor salah input, saldo dikembalikan',
+        ]);
+
+        $cancelResponse->assertOk()
+            ->assertJsonPath('sale.status', 'cancelled');
+
+        // Assert wallet balance is refunded back to 100000
+        $this->assertDatabaseHas('wallets', [
+            'id' => $wallet->id,
+            'balance' => 100000,
+        ]);
+
+        // Verify history data includes the cancelled status
+        $historyResponse = $this->getJson('/ajax/sales/history-data');
+        $historyResponse->assertOk();
+        $pulsaSales = collect($historyResponse->json('pulsa_sales'));
+        $cancelledItem = $pulsaSales->firstWhere('id', $saleId);
+        $this->assertNotNull($cancelledItem);
+        $this->assertEquals('cancelled', $cancelledItem['status']);
+    }
+
+    public function test_cancel_pos_sale_restores_product_stock_and_records_stock_movement(): void
+    {
+        $this->signIn('cashier');
+
+        $product = Product::create([
+            'code' => 'ACC-001',
+            'name' => 'Kabel Data Type-C',
+            'product_type' => 'regular',
+            'category' => 'Aksesoris',
+            'price' => 25000,
+            'cost_price' => 15000,
+            'stock' => 10,
+            'minimum_stock' => 2,
+            'is_active' => true,
+        ]);
+
+        $saleResponse = $this->postJson('/ajax/sales', [
+            'customer_name' => 'Budi',
+            'payment_method' => 'cash',
+            'cash_paid' => 50000,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 2,
+                ],
+            ],
+        ]);
+
+        $saleResponse->assertCreated();
+        $saleId = $saleResponse->json('sale.id');
+
+        // Stock decreased to 8
+        $this->assertEquals(8, $product->fresh()->stock);
+
+        // Cancel POS sale
+        $cancelResponse = $this->postJson("/ajax/sales/{$saleId}/cancel", [
+            'notes' => 'Pelanggan salah tipe charger',
+        ]);
+
+        $cancelResponse->assertOk()
+            ->assertJsonPath('sale.status', 'cancelled');
+
+        // Stock is restored to 10
+        $this->assertEquals(10, $product->fresh()->stock);
+
+        // Stock movement adjustment recorded
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'adjustment',
+            'quantity' => 2,
+        ]);
+
+        // History data reflects cancelled status
+        $historyResponse = $this->getJson('/ajax/sales/history-data');
+        $historyResponse->assertOk();
+        $posSales = collect($historyResponse->json('pos_sales'));
+        $cancelledSale = $posSales->firstWhere('id', $saleId);
+        $this->assertNotNull($cancelledSale);
+        $this->assertEquals('cancelled', $cancelledSale['status']);
     }
 }
 

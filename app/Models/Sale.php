@@ -16,18 +16,21 @@ class Sale extends Model
         'customer_name',
         'payment_method',
         'shift',
+        'status',
         'subtotal',
         'discount',
         'total',
         'cash_paid',
         'change_amount',
         'notes',
+        'cancelled_at',
     ];
 
     protected function casts(): array
     {
         return [
             'sale_date' => 'datetime',
+            'cancelled_at' => 'datetime',
             'subtotal' => 'decimal:2',
             'discount' => 'decimal:2',
             'total' => 'decimal:2',

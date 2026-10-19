@@ -230,9 +230,9 @@
                 <div>
                     <h3 class="font-semibold text-sm text-amber-900 flex items-center gap-1.5">
                         <svg class="h-4 w-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                        Peringatan Produk Kadaluarsa & Mendekati Kadaluarsa (&le; 30 Hari)
+                        Peringatan Kadaluarsa Voucher & Kartu Perdana (&le; 30 Hari)
                     </h3>
-                    <p class="text-[11px] text-[color:var(--muted)]">Daftar item produk fisik yang memerlukan perhatian khusus.</p>
+                    <p class="text-[11px] text-[color:var(--muted)]">Daftar item voucher fisik & kartu perdana yang memerlukan penanganan sebelum atau sesudah kadaluarsa.</p>
                 </div>
                 <button type="button" class="btn-icon text-[color:var(--muted)] hover:text-[color:var(--text)] close-pos-expiring-modal">
                     <svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
@@ -244,6 +244,7 @@
                         <thead class="text-left sticky top-0 bg-[#f8fafc] z-10">
                             <tr>
                                 <th>Produk</th>
+                                <th>Tipe</th>
                                 <th>Serial Number</th>
                                 <th class="text-center">Sisa Qty</th>
                                 <th>Tgl Kadaluarsa</th>
@@ -473,11 +474,11 @@
                     const expiredCount = state.expiringProducts.filter((p) => p.is_expired).length;
                     const soonCount = state.expiringProducts.length - expiredCount;
 
-                    let desc = `Terdapat ${state.expiringProducts.length} item produk yang kadaluarsa atau mendekati masa kadaluarsa (&le; 30 hari).`;
+                    let desc = `Terdapat ${state.expiringProducts.length} voucher & kartu perdana yang kadaluarsa atau mendekati masa kadaluarsa (&le; 30 hari).`;
                     if (expiredCount > 0 && soonCount > 0) {
-                        desc = `Perhatian: ${expiredCount} item SUDAH KADALUARSA, dan ${soonCount} item akan kadaluarsa dalam 30 hari ke depan.`;
+                        desc = `Perhatian: ${expiredCount} voucher/perdana SUDAH KADALUARSA, dan ${soonCount} item akan kadaluarsa dalam 30 hari ke depan.`;
                     } else if (expiredCount > 0) {
-                        desc = `Peringatan: ${expiredCount} item SUDAH KADALUARSA! Segera periksa di menu Stock.`;
+                        desc = `Peringatan: ${expiredCount} voucher/perdana SUDAH KADALUARSA! Segera periksa di menu Stock.`;
                     }
 
                     $('#posExpiringAlertText').text(desc);
@@ -495,6 +496,11 @@
                             <div class="font-medium">${item.product_name}</div>
                             <div class="text-[11px] text-[color:var(--muted)]">${item.product_code} · ${item.variant || '-'}</div>
                         </td>
+                        <td>
+                            <span class="badge ${item.item_type === 'Kartu Perdana' ? 'badge-info' : 'badge-primary'} font-semibold text-[11px]">
+                                ${item.item_type || 'Voucher'}
+                            </span>
+                        </td>
                         <td class="font-mono text-xs font-semibold">${item.serial_number || '<span class="text-[color:var(--muted)] font-normal">Non-Serial</span>'}</td>
                         <td class="font-bold text-center">${item.quantity}</td>
                         <td class="font-mono">${item.expiry_date || '-'}</td>
@@ -504,7 +510,7 @@
                             </span>
                         </td>
                     </tr>
-                `).join('') : '<tr><td colspan="5" class="text-center py-6 text-[color:var(--muted)]">Tidak ada produk yang kadaluarsa.</td></tr>');
+                `).join('') : '<tr><td colspan="6" class="text-center py-6 text-[color:var(--muted)]">Tidak ada voucher & kartu perdana yang kadaluarsa.</td></tr>');
             }
 
             function loadData() {
