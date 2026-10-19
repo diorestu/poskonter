@@ -1499,6 +1499,131 @@ class PosTest extends TestCase
         $this->assertEquals('PLS-20261019-1234', $response->json('details.pulsa.0.reference_number'));
         $this->assertEquals('TELKOMSEL', $response->json('details.pulsa.0.provider'));
     }
+
+    public function test_sales_history_can_be_filtered_by_period(): void
+    {
+        $this->signIn('cashier');
+
+        $product = Product::create([
+            'code' => 'ACC-CASE',
+            'name' => 'Casing HP',
+            'product_type' => 'regular',
+            'category' => 'Aksesoris',
+            'price' => 30000,
+            'cost_price' => 15000,
+            'stock' => 20,
+            'is_active' => true,
+        ]);
+
+        $electricProduct = Product::create([
+            'code' => 'PLS-AXIS',
+            'name' => 'Pulsa Axis 25k',
+            'product_type' => 'pulsa',
+            'category' => 'Axis',
+            'price' => 26000,
+            'cost_price' => 24500,
+            'stock' => 0,
+            'is_active' => true,
+        ]);
+
+        // 1. Transaction on 2026-10-10
+        $oldDate = Carbon::parse('2026-10-10 10:00:00');
+        $oldSale = \App\Models\Sale::create([
+            'invoice_number' => 'INV-20261010-001',
+            'sale_date' => $oldDate,
+            'customer_name' => 'Pelanggan Lama',
+            'payment_method' => 'cash',
+            'shift' => 'pagi',
+            'status' => 'completed',
+            'subtotal' => 30000,
+            'discount' => 0,
+            'total' => 30000,
+            'cash_paid' => 30000,
+            'change_amount' => 0,
+        ]);
+        \App\Models\SaleItem::create([
+            'sale_id' => $oldSale->id,
+            'product_id' => $product->id,
+            'quantity' => 1,
+            'price' => 30000,
+            'subtotal' => 30000,
+        ]);
+
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'PLS-20261010-001',
+            'sale_date' => $oldDate,
+            'product_id' => $electricProduct->id,
+            'customer_name' => 'Pelanggan Pulsa Lama',
+            'target_number' => '083812345678',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 26000,
+            'cost_amount' => 24500,
+            'cash_paid' => 26000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        // 2. Transaction on 2026-10-19 (Today)
+        $todayDate = Carbon::parse('2026-10-19 14:00:00');
+        $newSale = \App\Models\Sale::create([
+            'invoice_number' => 'INV-20261019-002',
+            'sale_date' => $todayDate,
+            'customer_name' => 'Pelanggan Hari Ini',
+            'payment_method' => 'cash',
+            'shift' => 'sore',
+            'status' => 'completed',
+            'subtotal' => 30000,
+            'discount' => 0,
+            'total' => 30000,
+            'cash_paid' => 30000,
+            'change_amount' => 0,
+        ]);
+        \App\Models\SaleItem::create([
+            'sale_id' => $newSale->id,
+            'product_id' => $product->id,
+            'quantity' => 1,
+            'price' => 30000,
+            'subtotal' => 30000,
+        ]);
+
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'PLS-20261019-002',
+            'sale_date' => $todayDate,
+            'product_id' => $electricProduct->id,
+            'customer_name' => 'Pelanggan Pulsa Hari Ini',
+            'target_number' => '083898765432',
+            'shift' => 'sore',
+            'payment_method' => 'cash',
+            'price' => 26000,
+            'cost_amount' => 24500,
+            'cash_paid' => 26000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        // Filter: Today only (2026-10-19)
+        $resToday = $this->getJson('/ajax/sales/history-data?start_date=2026-10-19&end_date=2026-10-19');
+        $resToday->assertOk();
+        $this->assertCount(1, $resToday->json('pos_sales'));
+        $this->assertCount(1, $resToday->json('pulsa_sales'));
+        $this->assertEquals('INV-20261019-002', $resToday->json('pos_sales.0.invoice_number'));
+        $this->assertEquals('PLS-20261019-002', $resToday->json('pulsa_sales.0.reference_number'));
+
+        // Filter: Past period (2026-10-01 to 2026-10-15)
+        $resOld = $this->getJson('/ajax/sales/history-data?start_date=2026-10-01&end_date=2026-10-15');
+        $resOld->assertOk();
+        $this->assertCount(1, $resOld->json('pos_sales'));
+        $this->assertCount(1, $resOld->json('pulsa_sales'));
+        $this->assertEquals('INV-20261010-001', $resOld->json('pos_sales.0.invoice_number'));
+        $this->assertEquals('PLS-20261010-001', $resOld->json('pulsa_sales.0.reference_number'));
+
+        // Without filter: All transactions returned
+        $resAll = $this->getJson('/ajax/sales/history-data');
+        $resAll->assertOk();
+        $this->assertCount(2, $resAll->json('pos_sales'));
+        $this->assertCount(2, $resAll->json('pulsa_sales'));
+    }
 }
 
 

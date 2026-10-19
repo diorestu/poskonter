@@ -1623,19 +1623,33 @@ class PosController extends Controller
 
     public function salesHistory(Request $request): JsonResponse
     {
-        $physicalSales = Sale::query()
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+
+        $physicalSalesQuery = Sale::query()
             ->with(['items.product:id,name,code,variant,category'])
             ->latest('sale_date')
-            ->latest('id')
-            ->limit(200)
-            ->get();
+            ->latest('id');
 
-        $pulsaSales = PulsaSale::query()
+        $pulsaSalesQuery = PulsaSale::query()
             ->with(['product:id,name,variant,category', 'wallet:id,name'])
             ->latest('sale_date')
-            ->latest('id')
-            ->limit(200)
-            ->get();
+            ->latest('id');
+
+        if ($startDate) {
+            $physicalSalesQuery->whereDate('sale_date', '>=', $startDate);
+            $pulsaSalesQuery->whereDate('sale_date', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $physicalSalesQuery->whereDate('sale_date', '<=', $endDate);
+            $pulsaSalesQuery->whereDate('sale_date', '<=', $endDate);
+        }
+
+        $limit = ($startDate || $endDate) ? 1000 : 200;
+
+        $physicalSales = $physicalSalesQuery->limit($limit)->get();
+        $pulsaSales = $pulsaSalesQuery->limit($limit)->get();
 
         return response()->json([
             'pos_sales' => $physicalSales,

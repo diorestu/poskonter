@@ -9,11 +9,36 @@
             </div>
             <div class="flex items-center gap-1.5 rounded-lg bg-[#f1f5f9] p-1 border border-[#cbd5e1]">
                 <button type="button" class="history-tab-btn active px-3 py-1 text-xs font-semibold rounded-md transition-all bg-white shadow-sm text-blue-600" data-tab="pos">
-                    Penjualan POS (Fisik & Voucher)
+                    Penjualan POS (Fisik & Voucher) <span id="tabPosCount" class="badge ml-1 font-bold">0</span>
                 </button>
                 <button type="button" class="history-tab-btn px-3 py-1 text-xs font-semibold rounded-md transition-all text-[#64748b] hover:text-[#0f172a]" data-tab="pulsa">
-                    Pulsa Elektrik
+                    Pulsa Elektrik <span id="tabPulsaCount" class="badge ml-1 font-bold">0</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- Period Filter Bar -->
+        <div class="px-4 py-2.5 bg-[#f8fafc] border-b border-[#e2e8f0] flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="font-semibold text-[#475569] flex items-center gap-1.5">
+                    <svg class="h-4 w-4 text-[#64748b]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+                    Periode:
+                </span>
+                <div class="relative flex items-center">
+                    <input type="text" id="historyDateRange" class="field py-1.5 pl-3 pr-3 text-xs w-56 bg-white font-medium cursor-pointer" placeholder="Pilih Rentang Tanggal..." readonly>
+                </div>
+                <div class="inline-flex items-center gap-1 rounded-md bg-[#e2e8f0]/70 p-0.5">
+                    <button type="button" class="btn-period-filter active px-2.5 py-1 font-semibold rounded bg-white shadow-xs text-blue-700" data-period="all">Semua</button>
+                    <button type="button" class="btn-period-filter px-2.5 py-1 font-medium rounded text-[#475569] hover:text-[#0f172a]" data-period="today">Hari Ini</button>
+                    <button type="button" class="btn-period-filter px-2.5 py-1 font-medium rounded text-[#475569] hover:text-[#0f172a]" data-period="yesterday">Kemarin</button>
+                    <button type="button" class="btn-period-filter px-2.5 py-1 font-medium rounded text-[#475569] hover:text-[#0f172a]" data-period="week">7 Hari</button>
+                    <button type="button" class="btn-period-filter px-2.5 py-1 font-medium rounded text-[#475569] hover:text-[#0f172a]" data-period="month">Bulan Ini</button>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-[#64748b]">
+                <span>Status Periode:</span>
+                <strong id="historyPeriodStatus" class="text-blue-700 font-semibold">Semua Riwayat Data</strong>
+                <span class="text-[11px] text-[#94a3b8]">(<span id="historyTotalCount">0</span> transaksi ditemukan)</span>
             </div>
         </div>
 
@@ -254,16 +279,108 @@
                 pulsaTable.renderFooter('#pulsaHistoryPagination', meta);
             }
 
+            let startDateStr = null;
+            let endDateStr = null;
+
+            function formatDate(d) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            function formatDisplayDate(d) {
+                return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            }
+
+            const fp = window.flatpickr ? window.flatpickr('#historyDateRange', {
+                mode: 'range',
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'd M Y',
+                locale: window.flatpickrIndonesian || 'default',
+                onChange: function (selectedDates, dateStr, instance) {
+                    if (selectedDates.length === 2) {
+                        const s = instance.formatDate(selectedDates[0], 'Y-m-d');
+                        const e = instance.formatDate(selectedDates[1], 'Y-m-d');
+                        startDateStr = s;
+                        endDateStr = e;
+                        $('.btn-period-filter').removeClass('active bg-white shadow-xs text-blue-700 font-semibold').addClass('text-[#475569] font-medium');
+                        const sDisp = formatDisplayDate(selectedDates[0]);
+                        const eDisp = formatDisplayDate(selectedDates[1]);
+                        $('#historyPeriodStatus').text(s === e ? sDisp : `${sDisp} - ${eDisp}`);
+                        loadData();
+                    }
+                }
+            }) : null;
+
+            function setPeriod(periodType, shouldLoad = true) {
+                const today = new Date();
+                $('.btn-period-filter').removeClass('active bg-white shadow-xs text-blue-700 font-semibold').addClass('text-[#475569] font-medium');
+                $(`.btn-period-filter[data-period="${periodType}"]`).addClass('active bg-white shadow-xs text-blue-700 font-semibold').removeClass('text-[#475569] font-medium');
+
+                if (periodType === 'today') {
+                    startDateStr = formatDate(today);
+                    endDateStr = formatDate(today);
+                    if (fp) fp.setDate([startDateStr, endDateStr], false);
+                    $('#historyPeriodStatus').text(`Hari Ini (${formatDisplayDate(today)})`);
+                } else if (periodType === 'yesterday') {
+                    const yest = new Date();
+                    yest.setDate(yest.getDate() - 1);
+                    startDateStr = formatDate(yest);
+                    endDateStr = formatDate(yest);
+                    if (fp) fp.setDate([startDateStr, endDateStr], false);
+                    $('#historyPeriodStatus').text(`Kemarin (${formatDisplayDate(yest)})`);
+                } else if (periodType === 'week') {
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 6);
+                    startDateStr = formatDate(weekAgo);
+                    endDateStr = formatDate(today);
+                    if (fp) fp.setDate([startDateStr, endDateStr], false);
+                    $('#historyPeriodStatus').text(`7 Hari Terakhir (${formatDisplayDate(weekAgo)} - ${formatDisplayDate(today)})`);
+                } else if (periodType === 'month') {
+                    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                    startDateStr = formatDate(firstDay);
+                    endDateStr = formatDate(today);
+                    if (fp) fp.setDate([startDateStr, endDateStr], false);
+                    $('#historyPeriodStatus').text(`Bulan Ini (${formatDisplayDate(firstDay)} - ${formatDisplayDate(today)})`);
+                } else if (periodType === 'all') {
+                    startDateStr = null;
+                    endDateStr = null;
+                    if (fp) fp.clear();
+                    $('#historyPeriodStatus').text('Semua Riwayat Data');
+                }
+
+                if (shouldLoad) {
+                    loadData();
+                }
+            }
+
+            $(document).on('click', '.btn-period-filter', function () {
+                setPeriod($(this).data('period'), true);
+            });
+
             function loadData() {
-                $.get(urls.historyData)
+                const params = {};
+                if (startDateStr) params.start_date = startDateStr;
+                if (endDateStr) params.end_date = endDateStr;
+
+                $.get(urls.historyData, params)
                     .done((response) => {
-                        posTable.setData(response.pos_sales || []);
+                        const posSales = response.pos_sales || [];
+                        const pulsaSales = response.pulsa_sales || [];
+
+                        posTable.setData(posSales);
                         posTable.setQuery($('#posHistorySearch').val());
                         drawPosTable(posTable.pagedRows());
 
-                        pulsaTable.setData(response.pulsa_sales || []);
+                        pulsaTable.setData(pulsaSales);
                         pulsaTable.setQuery($('#pulsaHistorySearch').val());
                         drawPulsaTable(pulsaTable.pagedRows());
+
+                        $('#tabPosCount').text(posSales.length);
+                        $('#tabPulsaCount').text(pulsaSales.length);
+                        $('#historyTotalCount').text(posSales.length + pulsaSales.length);
                     })
                     .fail(() => showAlert('Gagal memuat riwayat penjualan.', 'error'));
             }
