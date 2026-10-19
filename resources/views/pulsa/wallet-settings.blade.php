@@ -77,13 +77,13 @@
         </div>
     </div>
 
-    <!-- Top Up Modal Popup -->
+    <!-- Adjust / Top Up Modal Popup -->
     <div id="topupModal" class="modal-backdrop hidden">
         <div class="modal-card">
             <div class="modal-head flex items-center justify-between">
                 <div>
-                    <h3 class="font-semibold text-sm">Top Up Saldo Dompet</h3>
-                    <p class="text-[11px] text-[color:var(--muted)]">Tambah saldo pada server dompet pulsa elektrik / voucher.</p>
+                    <h3 class="font-semibold text-sm" id="adjustModalTitle">Adjust / Top Up Saldo Dompet</h3>
+                    <p class="text-[11px] text-[color:var(--muted)]">Tambah (+) atau kurangi (-) saldo server dompet pulsa elektrik / voucher.</p>
                 </div>
                 <button type="button" class="btn-icon text-[color:var(--muted)] hover:text-[color:var(--text)] close-topup-modal">
                     <svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
@@ -95,13 +95,32 @@
                     <select class="select" id="modal_wallet_id" required></select>
                 </div>
 
-                <div id="modalWalletInfo" class="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2.5 flex items-center justify-between text-xs">
-                    <span class="text-[color:var(--muted)]">Saldo Saat Ini:</span>
-                    <strong id="modalWalletCurrentBalance" class="text-blue-600 font-semibold font-mono">Rp 0</strong>
+                <div>
+                    <label class="mb-1 block font-medium">Jenis Penyesuaian</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" class="btn btn-secondary py-1.5 px-3 text-xs font-semibold wallet-adjust-type-btn border-2 border-emerald-600 bg-emerald-50 text-emerald-700" data-type="add">
+                            <span class="mr-1 font-bold">+</span> Tambah Saldo
+                        </button>
+                        <button type="button" class="btn btn-secondary py-1.5 px-3 text-xs font-semibold wallet-adjust-type-btn border border-[#cbd5e1] text-[#64748b]" data-type="reduce">
+                            <span class="mr-1 font-bold">-</span> Kurangi Saldo
+                        </button>
+                    </div>
+                    <input type="hidden" id="modal_wallet_type" value="add">
+                </div>
+
+                <div id="modalWalletInfo" class="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2.5 space-y-1 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[color:var(--muted)]">Saldo Saat Ini:</span>
+                        <strong id="modalWalletCurrentBalance" class="text-blue-600 font-semibold font-mono">Rp 0</strong>
+                    </div>
+                    <div class="flex items-center justify-between pt-1 border-t border-[#e2e8f0]">
+                        <span class="text-[color:var(--muted)]">Saldo Setelah Penyesuaian:</span>
+                        <strong id="modalWalletPreviewBalance" class="text-emerald-700 font-bold font-mono">Rp 0</strong>
+                    </div>
                 </div>
 
                 <div>
-                    <label class="mb-1 block font-medium">Nominal Top Up (Rp)</label>
+                    <label class="mb-1 block font-medium" id="modal_amount_label">Nominal Tambah Saldo (Rp)</label>
                     <input class="field font-mono font-semibold" type="text" inputmode="numeric" data-number-mask id="modal_wallet_amount" value="0" required>
                 </div>
 
@@ -109,18 +128,23 @@
                 <div class="space-y-1">
                     <div class="text-[11px] text-[color:var(--muted)]">Nominal Cepat:</div>
                     <div class="grid grid-cols-5 gap-1.5">
-                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="50000">+50rb</button>
-                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="100000">+100rb</button>
-                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="200000">+200rb</button>
-                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="500000">+500rb</button>
-                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="1000000">+1jt</button>
+                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="50000">50rb</button>
+                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="100000">100rb</button>
+                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="200000">200rb</button>
+                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="500000">500rb</button>
+                        <button type="button" class="quick-amount-btn btn btn-secondary text-[11px] py-1 px-1 min-h-[28px] text-center w-full whitespace-nowrap" data-amount="1000000">1jt</button>
                     </div>
                 </div>
 
+                <div>
+                    <label class="mb-1 block font-medium">Catatan / Alasan (Opsional)</label>
+                    <input class="field text-xs" type="text" id="modal_wallet_note" placeholder="Contoh: Koreksi server / Deposit via transfer BCA">
+                </div>
+
                 <div class="mt-4 flex gap-2 pt-2 border-t border-[#f1f5f9]">
-                    <button class="btn btn-primary flex-1" type="submit">
+                    <button class="btn btn-primary flex-1" type="submit" id="modalTopupSubmitBtn">
                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
-                        <span>Konfirmasi Tambah Saldo</span>
+                        <span id="modalTopupSubmitText">Konfirmasi Tambah Saldo</span>
                     </button>
                     <button class="btn btn-secondary close-topup-modal" type="button">
                         <span>Batal</span>
@@ -183,10 +207,22 @@
             function updateModalBalanceInfo() {
                 const walletId = Number($('#modal_wallet_id').val());
                 const wallet = state.wallets.find((w) => Number(w.id) === walletId);
+                const type = $('#modal_wallet_type').val() || 'add';
+                const amount = maskedNumberValue('#modal_wallet_amount') || 0;
+
                 if (wallet) {
-                    $('#modalWalletCurrentBalance').text(money(wallet.balance));
+                    const curBal = Number(wallet.balance || 0);
+                    $('#modalWalletCurrentBalance').text(money(curBal));
+                    const previewBal = type === 'add' ? curBal + amount : curBal - amount;
+                    $('#modalWalletPreviewBalance').text(money(previewBal));
+                    if (previewBal < 0) {
+                        $('#modalWalletPreviewBalance').removeClass('text-emerald-700 text-blue-600').addClass('text-rose-600');
+                    } else {
+                        $('#modalWalletPreviewBalance').removeClass('text-rose-600').addClass('text-emerald-700');
+                    }
                 } else {
                     $('#modalWalletCurrentBalance').text('Rp 0');
+                    $('#modalWalletPreviewBalance').text('Rp 0');
                 }
             }
 
@@ -217,13 +253,15 @@
                 $('#wallet_manage_id').val('');
             }
 
-            function openTopupModal(walletId = null) {
+            function openTopupModal(walletId = null, initialType = 'add') {
                 renderTopupOptions();
                 if (walletId) {
                     $('#modal_wallet_id').val(walletId);
                 }
-                updateModalBalanceInfo();
+                $(`.wallet-adjust-type-btn[data-type="${initialType}"]`).trigger('click');
                 setMaskedNumberValue('#modal_wallet_amount', 0);
+                $('#modal_wallet_note').val('');
+                updateModalBalanceInfo();
                 $('#topupModal').removeClass('hidden');
                 window.setTimeout(() => $('#modal_wallet_amount').trigger('focus').select(), 50);
             }
@@ -231,6 +269,7 @@
             function closeTopupModal() {
                 $('#topupModal').addClass('hidden');
                 setMaskedNumberValue('#modal_wallet_amount', 0);
+                $('#modal_wallet_note').val('');
             }
 
             function drawTable(meta) {
@@ -254,7 +293,7 @@
                                 </button>
                                 <button class="btn btn-primary text-xs py-1 px-2.5 min-h-[30px] pick-topup-wallet whitespace-nowrap" type="button" data-id="${wallet.id}">
                                     <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
-                                    <span>Top Up</span>
+                                    <span>Adjust Saldo</span>
                                 </button>
                             </div>
                         </td>
@@ -388,6 +427,35 @@
                     });
             });
 
+            $(document).on('click', '.wallet-adjust-type-btn', function () {
+                const type = $(this).data('type');
+                $('#modal_wallet_type').val(type);
+                $('.wallet-adjust-type-btn').removeClass('border-2 border-emerald-600 bg-emerald-50 text-emerald-700 border-rose-600 bg-rose-50 text-rose-700').addClass('border border-[#cbd5e1] text-[#64748b]');
+
+                if (type === 'add') {
+                    $(this).removeClass('border border-[#cbd5e1] text-[#64748b]').addClass('border-2 border-emerald-600 bg-emerald-50 text-emerald-700');
+                    $('#modal_amount_label').text('Nominal Tambah Saldo (Rp)');
+                    $('#modalTopupSubmitText').text('Konfirmasi Tambah Saldo');
+                    $('#modalTopupSubmitBtn').removeClass('btn-danger').addClass('btn-primary');
+                } else {
+                    $(this).removeClass('border border-[#cbd5e1] text-[#64748b]').addClass('border-2 border-rose-600 bg-rose-50 text-rose-700');
+                    $('#modal_amount_label').text('Nominal Kurangi Saldo (Rp)');
+                    $('#modalTopupSubmitText').text('Konfirmasi Kurangi Saldo');
+                    $('#modalTopupSubmitBtn').removeClass('btn-primary').addClass('btn-danger');
+                }
+                updateModalBalanceInfo();
+            });
+
+            $('#modal_wallet_id, #modal_wallet_amount').on('input change', function () {
+                updateModalBalanceInfo();
+            });
+
+            $('.quick-amount-btn').on('click', function () {
+                const amt = Number($(this).data('amount'));
+                setMaskedNumberValue('#modal_wallet_amount', amt);
+                updateModalBalanceInfo();
+            });
+
             $('#modalTopupForm').on('submit', function (event) {
                 event.preventDefault();
 
@@ -399,19 +467,24 @@
 
                 const amount = maskedNumberValue('#modal_wallet_amount');
                 if (amount <= 0) {
-                    showAlert('Masukkan nominal top up lebih dari 0.', 'error');
+                    showAlert('Masukkan nominal penyesuaian lebih dari 0.', 'error');
                     return;
                 }
 
+                const type = $('#modal_wallet_type').val() || 'add';
+                const note = ($('#modal_wallet_note').val() || '').trim();
+
                 $.post(urls.topupWallet.replace('__ID__', walletId), {
                     amount: amount,
+                    type: type,
+                    note: note,
                 }).done((response) => {
                     showAlert(response.message);
                     upsertWallet(response.wallet);
                     closeTopupModal();
                     loadData();
                 }).fail((xhr) => {
-                    showAlert(xhr.responseJSON?.message || 'Gagal menambah saldo.', 'error');
+                    showAlert(xhr.responseJSON?.message || 'Gagal menyesuaikan saldo.', 'error');
                 });
             });
 

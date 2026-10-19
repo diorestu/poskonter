@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\Provider;
-use App\Models\Wallet;
+use App\Models\StockMovement;
 use App\Models\User;
+use App\Models\Wallet;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -942,5 +944,269 @@ class PosTest extends TestCase
         $pdfResponse->assertOk();
         $this->assertEquals('application/pdf', $pdfResponse->headers->get('content-type'));
     }
+
+    public function test_stock_can_be_adjusted_with_add_reduce_and_set(): void
+    {
+        $this->signIn();
+
+        $product = Product::create([
+            'code' => 'ADJ-001',
+            'name' => 'Kabel Type C Fast',
+            'product_type' => 'regular',
+            'category' => 'Aksesoris',
+            'unit' => 'pcs',
+            'price' => 30000,
+            'cost_price' => 15000,
+            'stock' => 10,
+            'minimum_stock' => 2,
+            'is_active' => true,
+        ]);
+
+        // 1. Add stock adjustment
+        $responseAdd = $this->postJson("/ajax/products/{$product->id}/stock-adjustment", [
+            'type' => 'add',
+            'quantity' => 5,
+            'note' => 'Stok opname penambahan',
+        ]);
+
+        $responseAdd->assertOk()
+            ->assertJsonPath('product.stock', 15);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'stock' => 15,
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'adjustment',
+            'quantity' => 5,
+            'note' => 'Stok opname penambahan',
+        ]);
+
+        // 2. Reduce stock adjustment
+        $responseReduce = $this->postJson("/ajax/products/{$product->id}/stock-adjustment", [
+            'type' => 'reduce',
+            'quantity' => 3,
+            'note' => 'Barang rusak/hilang',
+        ]);
+
+        $responseReduce->assertOk()
+            ->assertJsonPath('product.stock', 12);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'stock' => 12,
+        ]);
+
+        // 3. Reject reduce if exceeding current stock
+        $responseExcess = $this->postJson("/ajax/products/{$product->id}/stock-adjustment", [
+            'type' => 'reduce',
+            'quantity' => 50,
+        ]);
+
+        $responseExcess->assertStatus(422)
+            ->assertJsonValidationErrors(['quantity']);
+
+        // 4. Set stock adjustment (stock opname final count)
+        $responseSet = $this->postJson("/ajax/products/{$product->id}/stock-adjustment", [
+            'type' => 'set',
+            'quantity' => 20,
+            'note' => 'Opname fisik akhir bulan',
+        ]);
+
+        $responseSet->assertOk()
+            ->assertJsonPath('product.stock', 20);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'stock' => 20,
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'adjustment',
+            'quantity' => 8, // difference from 12 to 20
+        ]);
+    }
+
+    public function test_product_serials_can_be_listed_and_updated(): void
+    {
+        $this->signIn();
+
+        $product = Product::create([
+            'code' => 'SN-PROD',
+            'name' => 'HP Zeni Phone 1',
+            'product_type' => 'regular',
+            'category' => 'HP',
+            'unit' => 'unit',
+            'price' => 1500000,
+            'cost_price' => 1200000,
+            'stock' => 1,
+            'minimum_stock' => 1,
+            'is_active' => true,
+        ]);
+
+        $movement = StockMovement::create([
+            'product_id' => $product->id,
+            'type' => 'in',
+            'quantity' => 1,
+            'serial_number' => 'IMEI-TYPO-1234',
+            'expiry_date' => '2026-12-31',
+            'cost_price' => 1200000,
+            'note' => 'Barang masuk awal',
+        ]);
+
+        // 1. Get product serials list
+        $responseList = $this->getJson("/ajax/products/{$product->id}/serials");
+        $responseList->assertOk()
+            ->assertJsonPath('serials.0.serial_number', 'IMEI-TYPO-1234')
+            ->assertJsonPath('serials.0.expiry_date', '2026-12-31');
+
+        // 2. Update serial number and expiry
+        $responseUpdate = $this->putJson("/ajax/products/{$product->id}/update-serial", [
+            'movement_id' => $movement->id,
+            'serial_number' => 'IMEI-CORRECT-5678',
+            'expiry_date' => '2027-01-15',
+            'cost_price' => 1250000,
+        ]);
+
+        $responseUpdate->assertOk()
+            ->assertJsonPath('message', 'Serial number berhasil diperbarui.');
+
+        $this->assertDatabaseHas('stock_movements', [
+            'id' => $movement->id,
+            'serial_number' => 'IMEI-CORRECT-5678',
+            'expiry_date' => '2027-01-15 00:00:00',
+            'cost_price' => 1250000,
+        ]);
+    }
+
+    public function test_wallet_balance_can_be_adjusted_by_adding_and_reducing(): void
+    {
+        $this->signIn();
+
+        $wallet = Wallet::create([
+            'name' => 'Server Digipos Test',
+            'balance' => 100000,
+            'is_active' => true,
+        ]);
+
+        // 1. Add balance
+        $responseAdd = $this->postJson("/ajax/wallets/{$wallet->id}/topup", [
+            'type' => 'add',
+            'amount' => 50000,
+        ]);
+
+        $responseAdd->assertOk();
+        $this->assertEquals(150000, (float) $wallet->fresh()->balance);
+
+        // 2. Reduce balance
+        $responseReduce = $this->postJson("/ajax/wallets/{$wallet->id}/topup", [
+            'type' => 'reduce',
+            'amount' => 30000,
+            'note' => 'Koreksi saldo server',
+        ]);
+
+        $responseReduce->assertOk();
+        $this->assertEquals(120000, (float) $wallet->fresh()->balance);
+
+        // 3. Reject reduce if balance insufficient
+        $responseFail = $this->postJson("/ajax/wallets/{$wallet->id}/adjust", [
+            'type' => 'reduce',
+            'amount' => 200000,
+        ]);
+
+        $responseFail->assertStatus(422)
+            ->assertJsonValidationErrors(['amount']);
+        $this->assertEquals(120000, (float) $wallet->fresh()->balance);
+    }
+
+    public function test_dashboard_includes_expiring_products_within_30_days(): void
+    {
+        $this->signIn();
+
+        $today = Carbon::today();
+
+        // Product A: Expiring in 10 days (should be reported)
+        $prodA = Product::create([
+            'code' => 'EXP-001',
+            'name' => 'Voucher Game 10 Hari',
+            'product_type' => 'voucher',
+            'category' => 'Voucher',
+            'unit' => 'pcs',
+            'price' => 25000,
+            'cost_price' => 20000,
+            'stock' => 5,
+            'minimum_stock' => 1,
+            'is_active' => true,
+        ]);
+        StockMovement::create([
+            'product_id' => $prodA->id,
+            'type' => 'in',
+            'quantity' => 5,
+            'serial_number' => 'VCH-10DAYS',
+            'expiry_date' => $today->copy()->addDays(10)->toDateString(),
+            'cost_price' => 20000,
+        ]);
+
+        // Product B: Expiring in 45 days (> 30 days, should NOT be reported)
+        $prodB = Product::create([
+            'code' => 'EXP-002',
+            'name' => 'Voucher Game 45 Hari',
+            'product_type' => 'voucher',
+            'category' => 'Voucher',
+            'unit' => 'pcs',
+            'price' => 50000,
+            'cost_price' => 45000,
+            'stock' => 5,
+            'minimum_stock' => 1,
+            'is_active' => true,
+        ]);
+        StockMovement::create([
+            'product_id' => $prodB->id,
+            'type' => 'in',
+            'quantity' => 5,
+            'serial_number' => 'VCH-45DAYS',
+            'expiry_date' => $today->copy()->addDays(45)->toDateString(),
+            'cost_price' => 45000,
+        ]);
+
+        // Product C: Already expired 2 days ago (should be reported as is_expired = true)
+        $prodC = Product::create([
+            'code' => 'EXP-003',
+            'name' => 'Perdana Expired',
+            'product_type' => 'regular',
+            'category' => 'Perdana',
+            'unit' => 'pcs',
+            'price' => 15000,
+            'cost_price' => 10000,
+            'stock' => 2,
+            'minimum_stock' => 1,
+            'is_active' => true,
+        ]);
+        StockMovement::create([
+            'product_id' => $prodC->id,
+            'type' => 'in',
+            'quantity' => 2,
+            'serial_number' => 'SIM-EXPIRED',
+            'expiry_date' => $today->copy()->subDays(2)->toDateString(),
+            'cost_price' => 10000,
+        ]);
+
+        $dashboardResponse = $this->getJson('/ajax/dashboard');
+        $dashboardResponse->assertOk()
+            ->assertJsonPath('summary.expiring_count', 2)
+            ->assertJsonPath('expiring_count', 2);
+
+        $expiring = collect($dashboardResponse->json('expiring_products'));
+        $this->assertTrue($expiring->contains('product_code', 'EXP-001'));
+        $this->assertTrue($expiring->contains('product_code', 'EXP-003'));
+        $this->assertFalse($expiring->contains('product_code', 'EXP-002'));
+
+        $itemC = $expiring->firstWhere('product_code', 'EXP-003');
+        $this->assertTrue($itemC['is_expired']);
+    }
 }
+
 

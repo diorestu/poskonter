@@ -11,6 +11,19 @@
             <div class="text-[11px] text-[color:var(--muted)] font-medium">Kasir Cepat POS</div>
         </div>
 
+        <!-- Banner Peringatan Kadaluarsa Produk di POS Dashboard -->
+        <div id="posExpiringAlertBanner" class="hidden mx-4 mt-3 mb-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs shrink-0">
+            <div class="flex flex-wrap items-center justify-between gap-2.5">
+                <div class="flex items-center gap-2">
+                    <span class="text-amber-700 font-bold text-sm">⚠️</span>
+                    <span class="text-amber-900" id="posExpiringAlertText">Terdapat stok produk yang kadaluarsa atau mendekati masa kadaluarsa (&le; 30 hari).</span>
+                </div>
+                <button type="button" class="btn btn-secondary border-amber-300 bg-white text-amber-900 hover:bg-amber-100 py-1 px-2.5 text-xs font-semibold" id="btnOpenPosExpiringModal">
+                    Lihat Produk Expired
+                </button>
+            </div>
+        </div>
+
         <div class="pos-main-panel flex-1 overflow-x-hidden p-4 sm:p-5 max-w-full" data-pos-panel="hp">
         <div class="grid gap-4 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_420px] max-w-full min-w-0 items-stretch">
             <!-- Left Column: Product Grid (Adapts to viewport, scrolls vertically) -->
@@ -205,6 +218,44 @@
                         <span>Buka Riwayat Penjualan Lengkap</span>
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                     </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Produk Expired di Dashboard POS -->
+    <div id="posExpiringModal" class="modal-backdrop hidden">
+        <div class="modal-card max-w-3xl">
+            <div class="modal-head flex items-center justify-between">
+                <div>
+                    <h3 class="font-semibold text-sm text-amber-900 flex items-center gap-1.5">
+                        <svg class="h-4 w-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Peringatan Produk Kadaluarsa & Mendekati Kadaluarsa (&le; 30 Hari)
+                    </h3>
+                    <p class="text-[11px] text-[color:var(--muted)]">Daftar item produk fisik yang memerlukan perhatian khusus.</p>
+                </div>
+                <button type="button" class="btn-icon text-[color:var(--muted)] hover:text-[color:var(--text)] close-pos-expiring-modal">
+                    <svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body p-4 space-y-3">
+                <div class="table-wrap max-h-[380px] overflow-y-auto">
+                    <table class="table-grid min-w-full text-xs">
+                        <thead class="text-left sticky top-0 bg-[#f8fafc] z-10">
+                            <tr>
+                                <th>Produk</th>
+                                <th>Serial Number</th>
+                                <th class="text-center">Sisa Qty</th>
+                                <th>Tgl Kadaluarsa</th>
+                                <th>Status / Sisa Hari</th>
+                            </tr>
+                        </thead>
+                        <tbody id="posExpiringTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pt-2 border-t border-[#edf2f7] flex justify-between items-center text-xs">
+                    <span class="text-[color:var(--muted)]">Untuk menyesuaikan stok atau mengedit serial number, buka menu Stock.</span>
+                    <a href="{{ route('stock.index') }}" class="btn btn-secondary py-1 px-3 text-xs font-semibold">Buka Menu Stock</a>
                 </div>
             </div>
         </div>
@@ -416,12 +467,53 @@
                 updatePaymentLabels();
             }
 
+            function renderExpiringAlert(expiringProducts) {
+                state.expiringProducts = expiringProducts || [];
+                if (state.expiringProducts.length > 0) {
+                    const expiredCount = state.expiringProducts.filter((p) => p.is_expired).length;
+                    const soonCount = state.expiringProducts.length - expiredCount;
+
+                    let desc = `Terdapat ${state.expiringProducts.length} item produk yang kadaluarsa atau mendekati masa kadaluarsa (&le; 30 hari).`;
+                    if (expiredCount > 0 && soonCount > 0) {
+                        desc = `Perhatian: ${expiredCount} item SUDAH KADALUARSA, dan ${soonCount} item akan kadaluarsa dalam 30 hari ke depan.`;
+                    } else if (expiredCount > 0) {
+                        desc = `Peringatan: ${expiredCount} item SUDAH KADALUARSA! Segera periksa di menu Stock.`;
+                    }
+
+                    $('#posExpiringAlertText').text(desc);
+                    $('#posExpiringAlertBanner').removeClass('hidden');
+                } else {
+                    $('#posExpiringAlertBanner').addClass('hidden');
+                }
+            }
+
+            function renderPosExpiringModalTable() {
+                const list = state.expiringProducts || [];
+                $('#posExpiringTableBody').html(list.length ? list.map((item) => `
+                    <tr>
+                        <td>
+                            <div class="font-medium">${item.product_name}</div>
+                            <div class="text-[11px] text-[color:var(--muted)]">${item.product_code} · ${item.variant || '-'}</div>
+                        </td>
+                        <td class="font-mono text-xs font-semibold">${item.serial_number || '<span class="text-[color:var(--muted)] font-normal">Non-Serial</span>'}</td>
+                        <td class="font-bold text-center">${item.quantity}</td>
+                        <td class="font-mono">${item.expiry_date || '-'}</td>
+                        <td>
+                            <span class="badge ${item.is_expired ? 'border border-red-300 bg-red-100 text-red-700' : 'border border-amber-300 bg-amber-100 text-amber-800'}">
+                                ${item.status_text}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('') : '<tr><td colspan="5" class="text-center py-6 text-[color:var(--muted)]">Tidak ada produk yang kadaluarsa.</td></tr>');
+            }
+
             function loadData() {
                 $.getJSON(window.posConfig.dashboardUrl, { _: Date.now() })
                     .done((response) => {
                         try {
                             renderProducts(response.products || []);
                             renderRecentSales(response.recent_sales || []);
+                            renderExpiringAlert(response.expiring_products || []);
                             renderCart();
                         } catch (err) {
                             console.error('Error rendering POS data:', err);
@@ -731,6 +823,15 @@
 
             $('#saveAndNewPayment').on('click', function () {
                 submitPayment(true);
+            });
+
+            $('#btnOpenPosExpiringModal').on('click', function () {
+                renderPosExpiringModalTable();
+                $('#posExpiringModal').removeClass('hidden');
+            });
+
+            $(document).on('click', '.close-pos-expiring-modal', function () {
+                $('#posExpiringModal').addClass('hidden');
             });
 
             bindNumberMasks(document);

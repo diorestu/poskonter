@@ -593,9 +593,12 @@ class PosController extends Controller
 
     public function dashboard(): JsonResponse
     {
+        $expiringProducts = $this->getExpiringStock(30);
+
         $summary = [
             'total_products' => Product::count(),
             'low_stock_count' => Product::where('product_type', '!=', 'pulsa')->whereColumn('stock', '<=', 'minimum_stock')->count(),
+            'expiring_count' => count($expiringProducts),
             'today_sales_total' => (float) Sale::whereDate('sale_date', today())->sum('total'),
             'today_expenses_total' => (float) Expense::whereDate('expense_date', today())->sum('amount'),
             'today_transactions' => Sale::whereDate('sale_date', today())->count(),
@@ -625,7 +628,120 @@ class PosController extends Controller
             'products' => $products,
             'recent_sales' => $recentSales,
             'stock_movements' => $stockMovements,
+            'expiring_products' => $expiringProducts,
+            'expiring_count' => count($expiringProducts),
         ]);
+    }
+
+    public function getExpiringStock(int $daysThreshold = 30): array
+    {
+        $today = Carbon::today();
+        $cutoff = $today->copy()->addDays($daysThreshold);
+
+        $movements = StockMovement::query()
+            ->with('product:id,name,code,variant,unit,stock,is_active,product_type')
+            ->whereIn('type', ['in', 'adjustment'])
+            ->whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<=', $cutoff)
+            ->orderBy('expiry_date', 'asc')
+            ->get();
+
+        if ($movements->isEmpty()) {
+            return [];
+        }
+
+        $productIds = $movements->pluck('product_id')->unique()->all();
+
+        $soldFromStock = StockMovement::query()
+            ->whereIn('product_id', $productIds)
+            ->where('type', 'sale')
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '')
+            ->pluck('serial_number')
+            ->all();
+
+        $soldFromPulsa = PulsaSale::query()
+            ->whereIn('product_id', $productIds)
+            ->where('status', '!=', 'cancelled')
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '')
+            ->pluck('serial_number')
+            ->all();
+
+        $soldFromSaleItems = SaleItem::query()
+            ->whereIn('product_id', $productIds)
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '')
+            ->pluck('serial_number')
+            ->all();
+
+        $soldCounts = array_count_values(array_map('strval', array_merge($soldFromStock, $soldFromPulsa, $soldFromSaleItems)));
+
+        $expiring = [];
+        $consumedCounts = [];
+        $productRemainingStock = [];
+
+        foreach ($movements as $m) {
+            $prod = $m->product;
+            if (!$prod || !$prod->is_active || (int) $prod->stock <= 0) {
+                continue;
+            }
+
+            if (!isset($productRemainingStock[$prod->id])) {
+                $productRemainingStock[$prod->id] = (int) $prod->stock;
+            }
+
+            $sn = (string) ($m->serial_number ?? '');
+            $movementQty = max(1, (int) ($m->quantity ?? 1));
+            $remaining = 0;
+
+            if ($sn !== '') {
+                $totalSold = $soldCounts[$sn] ?? 0;
+                $alreadyConsumed = $consumedCounts[$sn] ?? 0;
+
+                for ($q = 0; $q < $movementQty; $q++) {
+                    if ($alreadyConsumed < $totalSold) {
+                        $alreadyConsumed++;
+                        $consumedCounts[$sn] = $alreadyConsumed;
+                    } else {
+                        $remaining++;
+                    }
+                }
+            } else {
+                if ($productRemainingStock[$prod->id] > 0) {
+                    $remaining = min($movementQty, $productRemainingStock[$prod->id]);
+                    $productRemainingStock[$prod->id] -= $remaining;
+                }
+            }
+
+            if ($remaining > 0) {
+                $expDate = Carbon::parse($m->expiry_date)->startOfDay();
+                $days = (int) $today->diffInDays($expDate, false);
+                $isExpired = $days < 0;
+
+                $statusText = $isExpired
+                    ? 'Sudah expired ' . abs($days) . ' hari lalu'
+                    : ($days === 0 ? 'Expired hari ini' : 'Expired dalam ' . $days . ' hari');
+
+                $expiring[] = [
+                    'id' => $m->id,
+                    'product_id' => $prod->id,
+                    'product_name' => $prod->name,
+                    'product_code' => $prod->code,
+                    'variant' => $prod->variant,
+                    'product_type' => $prod->product_type,
+                    'serial_number' => $sn ?: null,
+                    'quantity' => $remaining,
+                    'expiry_date' => $m->expiry_date ? $m->expiry_date->format('Y-m-d') : null,
+                    'days_remaining' => $days,
+                    'is_expired' => $isExpired,
+                    'status_text' => $statusText,
+                    'cost_price' => (float) $m->cost_price,
+                ];
+            }
+        }
+
+        return $expiring;
     }
 
     public function products(Request $request): JsonResponse
@@ -880,6 +996,206 @@ class PosController extends Controller
         return response()->json([
             'message' => 'Stok berhasil ditambahkan.',
             'product' => $product->fresh(),
+        ]);
+    }
+
+    public function adjustStock(Request $request, Product $product): JsonResponse
+    {
+        $validated = $request->validate([
+            'type' => ['required', 'string', 'in:add,reduce,set'],
+            'quantity' => ['required', 'integer', 'min:0'],
+            'note' => ['nullable', 'string', 'max:255'],
+            'cost_price' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        if ($product->isPulsa()) {
+            throw ValidationException::withMessages([
+                'product' => 'Produk pulsa elektrik tidak memakai stok fisik.',
+            ]);
+        }
+
+        $type = $validated['type'];
+        $qty = (int) $validated['quantity'];
+        $currentStock = (int) $product->stock;
+
+        if ($type === 'add') {
+            if ($qty < 1) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Jumlah penambahan stok minimal 1.',
+                ]);
+            }
+            $delta = $qty;
+            $newStock = $currentStock + $delta;
+        } elseif ($type === 'reduce') {
+            if ($qty < 1) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Jumlah pengurangan stok minimal 1.',
+                ]);
+            }
+            if ($qty > $currentStock) {
+                throw ValidationException::withMessages([
+                    'quantity' => "Stok tidak mencukupi untuk dikurangi {$qty}. Stok saat ini: {$currentStock}.",
+                ]);
+            }
+            $delta = -$qty;
+            $newStock = $currentStock + $delta;
+        } else { // 'set'
+            $delta = $qty - $currentStock;
+            $newStock = $qty;
+        }
+
+        if ($delta === 0) {
+            return response()->json([
+                'message' => 'Tidak ada perubahan pada jumlah stok (stok tetap ' . $currentStock . ').',
+                'product' => $this->serializeProduct($product),
+            ]);
+        }
+
+        DB::transaction(function () use ($product, $delta, $newStock, $validated): void {
+            $product->update([
+                'stock' => $newStock,
+            ]);
+
+            if (isset($validated['cost_price']) && $validated['cost_price'] !== '' && $validated['cost_price'] !== null) {
+                $product->update([
+                    'cost_price' => (float) $validated['cost_price'],
+                ]);
+            }
+
+            $note = !empty($validated['note'])
+                ? $validated['note']
+                : ($delta > 0 ? "Penyesuaian stok tambah (+{$delta})" : "Penyesuaian stok kurang ({$delta})");
+
+            StockMovement::create([
+                'product_id' => $product->id,
+                'type' => 'adjustment',
+                'quantity' => abs($delta),
+                'cost_price' => $product->cost_price ?? 0,
+                'note' => $note,
+            ]);
+        });
+
+        return response()->json([
+            'message' => "Stok berhasil disesuaikan menjadi {$newStock}.",
+            'product' => $this->serializeProduct($product->fresh()),
+        ]);
+    }
+
+    public function getProductSerials(Product $product): JsonResponse
+    {
+        $movements = StockMovement::query()
+            ->where('product_id', $product->id)
+            ->whereIn('type', ['in', 'adjustment'])
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '')
+            ->orderBy('id', 'desc')
+            ->get(['id', 'serial_number', 'quantity', 'expiry_date', 'cost_price', 'note', 'created_at']);
+
+        $soldSerials = SaleItem::query()
+            ->where('product_id', $product->id)
+            ->whereNotNull('serial_number')
+            ->pluck('serial_number')
+            ->merge(
+                StockMovement::query()
+                    ->where('product_id', $product->id)
+                    ->where('type', 'sale')
+                    ->whereNotNull('serial_number')
+                    ->pluck('serial_number')
+            )
+            ->merge(
+                PulsaSale::query()
+                    ->where('product_id', $product->id)
+                    ->where('status', '!=', 'cancelled')
+                    ->whereNotNull('serial_number')
+                    ->pluck('serial_number')
+            )
+            ->map(fn ($s) => (string) $s)
+            ->all();
+
+        $soldCounts = array_count_values($soldSerials);
+
+        $items = [];
+        $movementSerials = [];
+        foreach ($movements as $m) {
+            $sn = (string) $m->serial_number;
+            $movementSerials[] = $sn;
+            $isSold = ($soldCounts[$sn] ?? 0) > 0;
+            $items[] = [
+                'id' => $m->id,
+                'serial_number' => $sn,
+                'quantity' => (int) $m->quantity,
+                'expiry_date' => $m->expiry_date ? $m->expiry_date->format('Y-m-d') : null,
+                'cost_price' => (float) $m->cost_price,
+                'is_sold' => $isSold,
+                'note' => $m->note,
+                'created_at' => $m->created_at ? $m->created_at->format('Y-m-d H:i') : null,
+            ];
+        }
+
+        if (!empty($product->serial_number) && !in_array((string) $product->serial_number, $movementSerials, true)) {
+            $pSn = (string) $product->serial_number;
+            $items[] = [
+                'id' => null,
+                'serial_number' => $pSn,
+                'quantity' => max(1, (int) $product->stock),
+                'expiry_date' => null,
+                'cost_price' => (float) $product->cost_price,
+                'is_sold' => ($soldCounts[$pSn] ?? 0) > 0,
+                'note' => 'Serial bawaan produk',
+                'created_at' => $product->created_at ? $product->created_at->format('Y-m-d H:i') : null,
+            ];
+        }
+
+        return response()->json([
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'code' => $product->code,
+                'stock' => $product->stock,
+            ],
+            'serials' => $items,
+        ]);
+    }
+
+    public function updateProductSerial(Request $request, Product $product): JsonResponse
+    {
+        $validated = $request->validate([
+            'movement_id' => ['nullable', 'integer'],
+            'serial_number' => ['required', 'string', 'max:120'],
+            'expiry_date' => ['nullable', 'date'],
+            'cost_price' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $newSn = trim($validated['serial_number']);
+        $expiryDate = !empty($validated['expiry_date']) ? $validated['expiry_date'] : null;
+        $costPrice = isset($validated['cost_price']) && $validated['cost_price'] !== '' && $validated['cost_price'] !== null
+            ? (float) $validated['cost_price']
+            : null;
+
+        DB::transaction(function () use ($product, $validated, $newSn, $expiryDate, $costPrice): void {
+            if (!empty($validated['movement_id'])) {
+                $movement = StockMovement::query()
+                    ->where('product_id', $product->id)
+                    ->findOrFail($validated['movement_id']);
+
+                $updates = ['serial_number' => $newSn];
+                if (array_key_exists('expiry_date', $validated)) {
+                    $updates['expiry_date'] = $expiryDate;
+                }
+                if ($costPrice !== null) {
+                    $updates['cost_price'] = $costPrice;
+                }
+                $movement->update($updates);
+            } else {
+                $product->update([
+                    'serial_number' => $newSn,
+                ]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Serial number berhasil diperbarui.',
+            'product' => $this->serializeProduct($product->fresh()),
         ]);
     }
 

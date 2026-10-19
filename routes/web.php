@@ -30,6 +30,9 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/expenses', [ExpenseController::class, 'dashboard'])->name('expenses.dashboard');
             Route::get('/products', [PosController::class, 'products'])->name('products');
             Route::post('/products/{product}/stock', [PosController::class, 'addStock'])->name('products.stock');
+            Route::post('/products/{product}/stock-adjustment', [PosController::class, 'adjustStock'])->name('products.stock-adjustment');
+            Route::get('/products/{product}/serials', [PosController::class, 'getProductSerials'])->name('products.serials');
+            Route::put('/products/{product}/update-serial', [PosController::class, 'updateProductSerial'])->name('products.update-serial');
             Route::post('/sales', [PosController::class, 'storeSale'])->name('sales.store');
             Route::get('/sales/history-data', [PosController::class, 'salesHistory'])->name('sales.history-data');
             Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
@@ -41,6 +44,7 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/voucher/sales', [PulsaController::class, 'storeVoucherSale'])->name('voucher.sales.store');
             Route::post('/wallets', [PulsaController::class, 'storeWallet'])->name('wallets.store');
             Route::post('/wallets/{wallet}/topup', [PulsaController::class, 'topupWallet'])->name('wallets.topup');
+            Route::post('/wallets/{wallet}/adjust', [PulsaController::class, 'topupWallet'])->name('wallets.adjust');
             Route::post('/debts', [PosController::class, 'storeDebt'])->name('debts.store');
             Route::post('/debts/payments', [PosController::class, 'storeDebtPayment'])->name('debts.payments.store');
             Route::get('/debts/unpaid', [PosController::class, 'unpaidDebts'])->name('debts.unpaid');

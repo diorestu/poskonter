@@ -146,12 +146,28 @@ class PulsaController extends Controller
     {
         $validated = $request->validate([
             'amount' => ['required', 'numeric', 'min:1'],
+            'type' => ['nullable', 'string', 'in:add,reduce'],
+            'note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $wallet->increment('balance', $validated['amount']);
+        $type = $validated['type'] ?? 'add';
+        $amount = (float) $validated['amount'];
+
+        if ($type === 'reduce') {
+            if ((float) $wallet->balance < $amount) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Saldo dompet tidak mencukupi untuk dikurangi sebesar Rp ' . number_format($amount, 0, ',', '.') . '. Saldo saat ini: Rp ' . number_format((float) $wallet->balance, 0, ',', '.'),
+                ]);
+            }
+            $wallet->decrement('balance', $amount);
+            $message = 'Saldo dompet berhasil dikurangi sebesar Rp ' . number_format($amount, 0, ',', '.') . '.';
+        } else {
+            $wallet->increment('balance', $amount);
+            $message = 'Saldo dompet berhasil ditambahkan sebesar Rp ' . number_format($amount, 0, ',', '.') . '.';
+        }
 
         return response()->json([
-            'message' => 'Saldo dompet berhasil ditambahkan.',
+            'message' => $message,
             'wallet' => $this->serializeWallet($wallet->fresh(['electricProviders' => function ($query): void {
                 $query
                     ->withCount(['electricProducts as products_count' => function ($productsQuery): void {

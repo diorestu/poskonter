@@ -78,7 +78,11 @@
                 storeProductUrl: @json(route('ajax.products.store')),
                 salesUrl: @json(route('ajax.sales.store')),
                 stockUrlTemplate: @json(url('/ajax/products/__ID__/stock')),
+                adjustStockUrlTemplate: @json(url('/ajax/products/__ID__/stock-adjustment')),
+                serialsUrlTemplate: @json(url('/ajax/products/__ID__/serials')),
+                updateSerialUrlTemplate: @json(url('/ajax/products/__ID__/update-serial')),
                 updateProductUrlTemplate: @json(url('/ajax/products/__ID__')),
+                adjustWalletUrlTemplate: @json(url('/ajax/wallets/__ID__/topup')),
             };
 
             window.runAppPage = function (callback) {
@@ -124,6 +128,18 @@
                                 },
                                 stockUrl(id) {
                                     return window.posConfig.stockUrlTemplate.replace('__ID__', id);
+                                },
+                                adjustStockUrl(id) {
+                                    return window.posConfig.adjustStockUrlTemplate.replace('__ID__', id);
+                                },
+                                serialsUrl(id) {
+                                    return window.posConfig.serialsUrlTemplate.replace('__ID__', id);
+                                },
+                                updateSerialUrl(id) {
+                                    return window.posConfig.updateSerialUrlTemplate.replace('__ID__', id);
+                                },
+                                adjustWalletUrl(id) {
+                                    return window.posConfig.adjustWalletUrlTemplate.replace('__ID__', id);
                                 },
                                 updateProductUrl(id) {
                                     return window.posConfig.updateProductUrlTemplate.replace('__ID__', id);
