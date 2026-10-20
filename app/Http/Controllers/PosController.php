@@ -150,7 +150,6 @@ class PosController extends Controller
                 $ref = $ps->reference_number ?? '';
                 $isElectric = str_starts_with(strtoupper(trim($ref)), 'PLS')
                     || str_contains(strtoupper(trim($ref)), 'PLS')
-                    || str_starts_with(strtoupper(trim($ps->product?->code ?? '')), 'PLS')
                     || $this->isPulsaElektrik($ps->product)
                     || $ps->wallet_id !== null;
 
@@ -313,7 +312,6 @@ class PosController extends Controller
 
             $isPls = str_starts_with($refUpper, 'PLS')
                 || str_contains($refUpper, 'PLS')
-                || str_starts_with($productCodeUpper, 'PLS')
                 || $this->isPulsaElektrik($ps->product)
                 || $ps->wallet_id !== null;
 
@@ -370,8 +368,7 @@ class PosController extends Controller
         // 2. Detailed Vouchers, Pulsa & Accessories from POS Sales
         foreach ($sales as $s) {
             foreach ($s->items as $item) {
-                $productCodeUpper = strtoupper(trim($item->product?->code ?? ''));
-                $isItemPls = str_starts_with($productCodeUpper, 'PLS') || $this->isPulsaElektrik($item->product);
+                $isItemPls = $this->isPulsaElektrik($item->product);
 
                 if ($this->isVoucher($item->product) && ! $isItemPls) {
                     $detailedVouchers[] = [
@@ -541,22 +538,35 @@ class PosController extends Controller
             return false;
         }
 
-        $code = strtoupper(trim($product->code ?? ''));
-        if (str_starts_with($code, 'PLS')) {
-            return true;
+        if ($product->product_type === 'voucher' || $product->product_type === 'regular') {
+            return false;
         }
 
         if (method_exists($product, 'isPulsa')) {
             return $product->isPulsa();
         }
 
-        return $product->product_type === 'pulsa' || $product->provider_id !== null;
+        if ($product->product_type === 'pulsa') {
+            return true;
+        }
+
+        $code = strtoupper(trim($product->code ?? ''));
+
+        return str_starts_with($code, 'PLS');
     }
 
     public function isVoucher(?Product $product): bool
     {
         if (! $product) {
             return false;
+        }
+
+        if ($product->product_type === 'pulsa') {
+            return false;
+        }
+
+        if ($product->product_type === 'voucher') {
+            return true;
         }
 
         // Electric / Pulsa products MUST NEVER be classified as vouchers
@@ -572,8 +582,7 @@ class PosController extends Controller
         $cat = strtolower($product->category ?? '');
         $name = strtolower($product->name ?? '');
 
-        return $type === 'voucher'
-            || str_contains($cat, 'voucher')
+        return str_contains($cat, 'voucher')
             || str_contains($cat, 'kuota')
             || str_contains($cat, 'data')
             || str_contains($cat, 'paket')
@@ -637,11 +646,9 @@ class PosController extends Controller
         ?string $productCode = null
     ): string {
         $refUpper = strtoupper(trim($referenceNumber ?? ''));
-        $codeUpper = strtoupper(trim($productCode ?? ''));
         $isPls = $isElectric
             || str_starts_with($refUpper, 'PLS')
-            || str_contains($refUpper, 'PLS')
-            || str_starts_with($codeUpper, 'PLS');
+            || str_contains($refUpper, 'PLS');
 
         $combined = strtolower(trim(($walletName ?? '') . ' ' . ($providerName ?? '') . ' ' . ($category ?? '') . ' ' . ($productName ?? '')));
 

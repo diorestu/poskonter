@@ -70,11 +70,17 @@ class Product extends Model
 
     public function isPulsa(): bool
     {
+        if ($this->product_type === 'voucher' || $this->product_type === 'regular') {
+            return false;
+        }
+
+        if ($this->product_type === 'pulsa') {
+            return true;
+        }
+
         $code = strtoupper(trim($this->code ?? ''));
 
-        return $this->product_type === 'pulsa'
-            || $this->provider_id !== null
-            || str_starts_with($code, 'PLS');
+        return str_starts_with($code, 'PLS');
     }
 
     public function isPerdana(): bool
@@ -100,11 +106,14 @@ class Product extends Model
         }
 
         $type = strtolower($this->product_type ?? '');
+        if ($type === 'voucher') {
+            return true;
+        }
+
         $cat = strtolower($this->category ?? '');
         $name = strtolower($this->name ?? '');
 
-        return $type === 'voucher'
-            || str_contains($cat, 'voucher')
+        return str_contains($cat, 'voucher')
             || str_contains($cat, 'kuota')
             || str_contains($cat, 'data')
             || str_contains($cat, 'paket')

@@ -1624,6 +1624,110 @@ class PosTest extends TestCase
         $this->assertCount(2, $resAll->json('pos_sales'));
         $this->assertCount(2, $resAll->json('pulsa_sales'));
     }
+
+    public function test_voucher_product_with_provider_id_can_receive_stock_and_adjust_stock(): void
+    {
+        $this->signIn();
+
+        $provider = Provider::create(['name' => 'Axis']);
+
+        $product = Product::create([
+            'code' => 'VCR-AXIS-5GB',
+            'name' => 'AIGO 5GB',
+            'product_type' => 'voucher',
+            'provider_id' => $provider->id,
+            'category' => 'AXIS',
+            'variant' => '5GB / 3 Hari',
+            'unit' => 'pcs',
+            'price' => 18000,
+            'cost_price' => 15000,
+            'stock' => 0,
+            'minimum_stock' => 5,
+            'is_active' => true,
+        ]);
+
+        $this->assertFalse($product->isPulsa());
+        $this->assertTrue($product->isVoucher());
+
+        // Test add stock
+        $addStockResponse = $this->postJson("/ajax/products/{$product->id}/stock", [
+            'reference_type' => 'manual',
+            'notes' => 'Restock voucher',
+            'items' => [
+                [
+                    'quantity' => 5,
+                    'cost_price' => 15000,
+                    'serial_number' => 'AXIS1234567890',
+                ],
+            ],
+        ]);
+
+        $addStockResponse->assertOk()
+            ->assertJsonPath('message', 'Stok berhasil ditambahkan.');
+
+        $this->assertEquals(5, $product->fresh()->stock);
+
+        // Test adjust stock
+        $adjustResponse = $this->postJson("/ajax/products/{$product->id}/stock-adjustment", [
+            'type' => 'add',
+            'quantity' => 2,
+            'note' => 'Penyesuaian stok voucher',
+        ]);
+
+        $adjustResponse->assertOk()
+            ->assertJsonPath('message', 'Stok berhasil disesuaikan menjadi 7.');
+
+        $this->assertEquals(7, $product->fresh()->stock);
+    }
+
+    public function test_electric_pulsa_product_rejects_add_stock_and_adjust_stock(): void
+    {
+        $this->signIn();
+
+        $provider = Provider::create(['name' => 'Telkomsel']);
+
+        $product = Product::create([
+            'code' => 'PLS-10',
+            'name' => 'Pulsa Telkomsel 10k',
+            'product_type' => 'pulsa',
+            'provider_id' => $provider->id,
+            'category' => 'TELKOMSEL',
+            'variant' => '10.000',
+            'unit' => 'trx',
+            'price' => 12000,
+            'cost_price' => 10500,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'is_active' => true,
+        ]);
+
+        $this->assertTrue($product->isPulsa());
+        $this->assertFalse($product->isVoucher());
+
+        // Attempt add stock -> should fail with 422
+        $addStockResponse = $this->postJson("/ajax/products/{$product->id}/stock", [
+            'items' => [
+                [
+                    'quantity' => 5,
+                    'cost_price' => 10000,
+                ],
+            ],
+        ]);
+
+        $addStockResponse->assertStatus(422)
+            ->assertJsonValidationErrors(['product']);
+
+        // Attempt adjust stock -> should fail with 422
+        $adjustResponse = $this->postJson("/ajax/products/{$product->id}/stock-adjustment", [
+            'type' => 'add',
+            'quantity' => 2,
+            'note' => 'Tes',
+        ]);
+
+        $adjustResponse->assertStatus(422)
+            ->assertJsonValidationErrors(['product']);
+    }
 }
+
 
 
