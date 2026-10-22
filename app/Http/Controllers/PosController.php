@@ -780,7 +780,13 @@ class PosController extends Controller
 
         $movements = StockMovement::query()
             ->with('product:id,name,code,variant,unit,stock,is_active,product_type,category')
-            ->whereIn('type', ['in', 'adjustment'])
+            ->where(function ($q): void {
+                $q->where('type', 'in')
+                    ->orWhere(function ($sub): void {
+                        $sub->where('type', 'adjustment')
+                            ->where('note', 'not like', 'Pembatalan Transaksi%');
+                    });
+            })
             ->whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<=', $cutoff)
             ->orderBy('expiry_date', 'asc')
@@ -792,14 +798,6 @@ class PosController extends Controller
 
         $productIds = $movements->pluck('product_id')->unique()->all();
 
-        $soldFromStock = StockMovement::query()
-            ->whereIn('product_id', $productIds)
-            ->where('type', 'sale')
-            ->whereNotNull('serial_number')
-            ->where('serial_number', '!=', '')
-            ->pluck('serial_number')
-            ->all();
-
         $soldFromPulsa = PulsaSale::query()
             ->whereIn('product_id', $productIds)
             ->where('status', '!=', 'cancelled')
@@ -810,12 +808,15 @@ class PosController extends Controller
 
         $soldFromSaleItems = SaleItem::query()
             ->whereIn('product_id', $productIds)
+            ->whereHas('sale', function ($query): void {
+                $query->where('status', '!=', 'cancelled');
+            })
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
             ->pluck('serial_number')
             ->all();
 
-        $soldCounts = array_count_values(array_map('strval', array_merge($soldFromStock, $soldFromPulsa, $soldFromSaleItems)));
+        $soldCounts = array_count_values(array_map('strval', array_merge($soldFromPulsa, $soldFromSaleItems)));
 
         $expiring = [];
         $consumedCounts = [];
@@ -1234,7 +1235,13 @@ class PosController extends Controller
     {
         $movements = StockMovement::query()
             ->where('product_id', $product->id)
-            ->whereIn('type', ['in', 'adjustment'])
+            ->where(function ($q): void {
+                $q->where('type', 'in')
+                    ->orWhere(function ($sub): void {
+                        $sub->where('type', 'adjustment')
+                            ->where('note', 'not like', 'Pembatalan Transaksi%');
+                    });
+            })
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
             ->orderBy('id', 'desc')
@@ -1242,15 +1249,11 @@ class PosController extends Controller
 
         $soldSerials = SaleItem::query()
             ->where('product_id', $product->id)
+            ->whereHas('sale', function ($query): void {
+                $query->where('status', '!=', 'cancelled');
+            })
             ->whereNotNull('serial_number')
             ->pluck('serial_number')
-            ->merge(
-                StockMovement::query()
-                    ->where('product_id', $product->id)
-                    ->where('type', 'sale')
-                    ->whereNotNull('serial_number')
-                    ->pluck('serial_number')
-            )
             ->merge(
                 PulsaSale::query()
                     ->where('product_id', $product->id)
@@ -1522,7 +1525,13 @@ class PosController extends Controller
     {
         $inMovements = StockMovement::query()
             ->where('product_id', $product->id)
-            ->whereIn('type', ['in', 'adjustment'])
+            ->where(function ($q): void {
+                $q->where('type', 'in')
+                    ->orWhere(function ($sub): void {
+                        $sub->where('type', 'adjustment')
+                            ->where('note', 'not like', 'Pembatalan Transaksi%');
+                    });
+            })
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
             ->orderBy('id', 'asc')
@@ -1531,14 +1540,6 @@ class PosController extends Controller
         if ($inMovements->isEmpty() && empty($product->serial_number)) {
             return [];
         }
-
-        $soldFromStock = StockMovement::query()
-            ->where('product_id', $product->id)
-            ->where('type', 'sale')
-            ->whereNotNull('serial_number')
-            ->where('serial_number', '!=', '')
-            ->pluck('serial_number')
-            ->all();
 
         $soldFromPulsa = PulsaSale::query()
             ->where('product_id', $product->id)
@@ -1550,12 +1551,15 @@ class PosController extends Controller
 
         $soldFromSaleItems = SaleItem::query()
             ->where('product_id', $product->id)
+            ->whereHas('sale', function ($query): void {
+                $query->where('status', '!=', 'cancelled');
+            })
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
             ->pluck('serial_number')
             ->all();
 
-        $allSold = array_merge($soldFromStock, $soldFromPulsa, $soldFromSaleItems);
+        $allSold = array_merge($soldFromPulsa, $soldFromSaleItems);
         $soldCounts = array_count_values(array_map('strval', $allSold));
 
         $available = [];

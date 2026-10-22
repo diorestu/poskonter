@@ -1727,7 +1727,97 @@ class PosTest extends TestCase
         $adjustResponse->assertStatus(422)
             ->assertJsonValidationErrors(['product']);
     }
+
+    public function test_cancel_voucher_sale_restores_stock_and_available_serials(): void
+    {
+        $this->signIn('cashier');
+
+        $provider = Provider::create(['name' => 'Telkomsel']);
+
+        $product = Product::create([
+            'code' => 'VCR-TSEL-10GB',
+            'name' => 'Voucher Kuota Telkomsel 10GB',
+            'product_type' => 'voucher',
+            'provider_id' => $provider->id,
+            'category' => 'TELKOMSEL',
+            'variant' => '10GB / 30 Hari',
+            'unit' => 'pcs',
+            'price' => 35000,
+            'cost_price' => 30000,
+            'stock' => 2,
+            'minimum_stock' => 1,
+            'is_active' => true,
+        ]);
+
+        // Add 1 stock with a serial number
+        $this->postJson("/ajax/products/{$product->id}/stock", [
+            'items' => [
+                [
+                    'quantity' => 1,
+                    'cost_price' => 30000,
+                    'serial_number' => 'TSEL999888777',
+                ],
+            ],
+        ])->assertOk();
+
+        // Product stock is now 3 (2 initial + 1)
+        $this->assertEquals(3, $product->fresh()->stock);
+
+        // Check voucher dashboard: 1 available serial
+        $dashboardRes = $this->getJson('/ajax/voucher/dashboard');
+        $dashboardRes->assertOk();
+        $pData = collect($dashboardRes->json('products'))->firstWhere('id', $product->id);
+        $this->assertEquals(1, $pData['available_serials_count']);
+
+        // Sell the voucher
+        $sellResponse = $this->postJson('/ajax/voucher/sales', [
+            'product_id' => $product->id,
+            'serial_number' => 'TSEL999888777',
+            'payment_method' => 'cash',
+            'cash_paid' => 35000,
+        ]);
+
+        $sellResponse->assertCreated();
+        $saleId = $sellResponse->json('sale.id');
+        $refNumber = $sellResponse->json('sale.reference_number');
+        $this->assertStringStartsWith('VCR-', $refNumber);
+
+        // Stock decreased to 2
+        $this->assertEquals(2, $product->fresh()->stock);
+
+        // Available serial count is now 0
+        $dashboardResAfterSale = $this->getJson('/ajax/voucher/dashboard');
+        $pDataAfterSale = collect($dashboardResAfterSale->json('products'))->firstWhere('id', $product->id);
+        $this->assertEquals(0, $pDataAfterSale['available_serials_count']);
+
+        // Cancel the voucher transaction
+        $cancelResponse = $this->postJson("/ajax/pulsa/sales/{$saleId}/cancel", [
+            'notes' => 'Pembatalan transaksi voucher',
+        ]);
+
+        $cancelResponse->assertOk()
+            ->assertJsonPath('sale.status', 'cancelled');
+
+        // Stock is restored to 3
+        $this->assertEquals(3, $product->fresh()->stock);
+
+        // Stock movement adjustment recorded
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'adjustment',
+            'quantity' => 1,
+            'serial_number' => 'TSEL999888777',
+            'note' => 'Pembatalan Transaksi ' . $refNumber,
+        ]);
+
+        // Serial number is back to available serials
+        $dashboardResAfterCancel = $this->getJson('/ajax/voucher/dashboard');
+        $pDataAfterCancel = collect($dashboardResAfterCancel->json('products'))->firstWhere('id', $product->id);
+        $this->assertEquals(1, $pDataAfterCancel['available_serials_count']);
+        $this->assertEquals('TSEL999888777', $pDataAfterCancel['available_serials'][0]['serial_number']);
+    }
 }
+
 
 
 

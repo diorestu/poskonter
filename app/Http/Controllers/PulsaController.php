@@ -386,9 +386,16 @@ class PulsaController extends Controller
             }
 
             // Jika produk fisik/voucher yang memotong stok, kembalikan stok
-            $product = $pulsaSale->product;
-            if ($product && ! $product->isPulsa()) {
+            $product = Product::query()->lockForUpdate()->find($pulsaSale->product_id);
+            $refUpper = strtoupper(trim($pulsaSale->reference_number ?? ''));
+            $isVoucher = str_starts_with($refUpper, 'VCR')
+                || ! empty($pulsaSale->serial_number)
+                || ($product && ($product->product_type === 'voucher' || $product->product_type === 'regular' || $product->isVoucher() || ! $product->isPulsa()));
+
+            $restoredStock = false;
+            if ($product && $isVoucher) {
                 $product->increment('stock', 1);
+                $restoredStock = true;
 
                 StockMovement::create([
                     'product_id' => $product->id,
@@ -415,6 +422,14 @@ class PulsaController extends Controller
                 'cancelled_at' => now(),
                 'notes' => $note,
             ]);
+
+            if ($restoredStock && $refundedWallet) {
+                return 'Transaksi ' . $pulsaSale->reference_number . ' berhasil dibatalkan. Stok voucher telah dikembalikan (+1) dan saldo modal Rp ' . number_format($pulsaSale->cost_amount, 0, ',', '.') . ' telah dikembalikan ke ' . $refundedWallet->name . '.';
+            }
+
+            if ($restoredStock) {
+                return 'Transaksi ' . $pulsaSale->reference_number . ' berhasil dibatalkan dan 1 pcs stok voucher telah dikembalikan.';
+            }
 
             if ($refundedWallet) {
                 return 'Transaksi ' . $pulsaSale->reference_number . ' dibatalkan. Saldo modal Rp ' . number_format($pulsaSale->cost_amount, 0, ',', '.') . ' telah dikembalikan ke ' . $refundedWallet->name . '.';
@@ -654,7 +669,13 @@ class PulsaController extends Controller
     {
         $inMovements = StockMovement::query()
             ->where('product_id', $product->id)
-            ->whereIn('type', ['in', 'adjustment'])
+            ->where(function ($q): void {
+                $q->where('type', 'in')
+                    ->orWhere(function ($sub): void {
+                        $sub->where('type', 'adjustment')
+                            ->where('note', 'not like', 'Pembatalan Transaksi%');
+                    });
+            })
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
             ->orderBy('id', 'asc')
@@ -663,14 +684,6 @@ class PulsaController extends Controller
         if ($inMovements->isEmpty() && empty($product->serial_number)) {
             return [];
         }
-
-        $soldFromStock = StockMovement::query()
-            ->where('product_id', $product->id)
-            ->where('type', 'sale')
-            ->whereNotNull('serial_number')
-            ->where('serial_number', '!=', '')
-            ->pluck('serial_number')
-            ->all();
 
         $soldFromPulsa = PulsaSale::query()
             ->where('product_id', $product->id)
@@ -682,12 +695,15 @@ class PulsaController extends Controller
 
         $soldFromSaleItems = SaleItem::query()
             ->where('product_id', $product->id)
+            ->whereHas('sale', function ($query): void {
+                $query->where('status', '!=', 'cancelled');
+            })
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
             ->pluck('serial_number')
             ->all();
 
-        $allSold = array_merge($soldFromStock, $soldFromPulsa, $soldFromSaleItems);
+        $allSold = array_merge($soldFromPulsa, $soldFromSaleItems);
         $soldCounts = array_count_values(array_map('strval', $allSold));
 
         $available = [];

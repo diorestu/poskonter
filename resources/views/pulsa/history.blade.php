@@ -266,7 +266,7 @@
                                         </button>
                                     ` : ''}
                                     ${!isCancelled ? `
-                                        <button type="button" class="btn btn-danger py-1 px-2.5 text-xs cancel-pulsa-sale" data-id="${item.id}" data-ref="${item.reference_number}" data-wallet="${item.wallet?.name || ''}" title="Batalkan Transaksi & Kembalikan Saldo">
+                                        <button type="button" class="btn btn-danger py-1 px-2.5 text-xs cancel-pulsa-sale" data-id="${item.id}" data-ref="${item.reference_number}" data-wallet="${item.wallet?.name || ''}" title="${String(item.reference_number || '').startsWith('VCR') ? 'Batalkan Transaksi & Kembalikan Stok Voucher' : 'Batalkan Transaksi & Kembalikan Saldo'}">
                                             <span>Batalkan</span>
                                         </button>
                                     ` : '<span class="text-[11px] text-[color:var(--muted)] font-normal">Dibatalkan</span>'}
@@ -447,10 +447,19 @@
             $(document).on('click', '.cancel-pulsa-sale', function () {
                 const ref = $(this).data('ref') || 'transaksi ini';
                 const wallet = $(this).data('wallet');
-                const promptMsg = wallet
-                    ? `Batalkan transaksi ${ref}?\nSaldo modal akan otomatis dikembalikan ke dompet: ${wallet}.\n\nMasukkan catatan pembatalan (opsional):`
-                    : `Batalkan transaksi ${ref}?\n\nMasukkan catatan pembatalan (opsional):`;
-                const reason = window.prompt(promptMsg, 'Pulsa tidak masuk / gangguan server');
+                const isVcr = String(ref).startsWith('VCR');
+                let promptMsg = `Batalkan transaksi ${ref}?`;
+                if (isVcr && wallet) {
+                    promptMsg = `Batalkan transaksi ${ref}?\nStok voucher dan saldo modal dompet ${wallet} akan otomatis dikembalikan.\n\nMasukkan catatan pembatalan (opsional):`;
+                } else if (isVcr) {
+                    promptMsg = `Batalkan transaksi ${ref}?\nStok voucher akan otomatis dikembalikan.\n\nMasukkan catatan pembatalan (opsional):`;
+                } else if (wallet) {
+                    promptMsg = `Batalkan transaksi ${ref}?\nSaldo modal akan otomatis dikembalikan ke dompet: ${wallet}.\n\nMasukkan catatan pembatalan (opsional):`;
+                } else {
+                    promptMsg = `Batalkan transaksi ${ref}?\n\nMasukkan catatan pembatalan (opsional):`;
+                }
+                const defaultReason = isVcr ? 'Pembatalan transaksi voucher' : 'Pulsa tidak masuk / gangguan server';
+                const reason = window.prompt(promptMsg, defaultReason);
                 if (reason === null) return;
 
                 $.post(urls.pulsaCancel.replace('__ID__', $(this).data('id')), {
