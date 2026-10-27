@@ -14,6 +14,7 @@ class PulsaSale extends Model
         'reference_number',
         'sale_date',
         'product_id',
+        'manual_product_name',
         'wallet_id',
         'customer_name',
         'target_number',

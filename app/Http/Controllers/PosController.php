@@ -98,6 +98,7 @@ class PosController extends Controller
             ->get();
 
         $debts = Debt::query()
+            ->where('status', '!=', 'cancelled')
             ->whereDate('debt_date', '>=', $startDate)
             ->whereDate('debt_date', '<=', $endDate)
             ->orderBy('debt_date', 'asc')
@@ -157,7 +158,7 @@ class PosController extends Controller
                     $ps->wallet?->name,
                     $ps->product?->provider?->name,
                     $ps->product?->category,
-                    $ps->product?->name,
+                    $ps->product?->name ?: $ps->manual_product_name,
                     $isElectric,
                     $ref,
                     $ps->product?->code
@@ -271,9 +272,19 @@ class PosController extends Controller
             // Selisih = total uang + nontunai - total penjualan shift
             $selisih = (float) ($totalUangDanNontunai - $totalShiftSales);
 
-            $halfExpense = (float) (($expenses->sum('amount')) / 2);
+            // Pengeluaran per shift (Kas Pagi vs Kas Sore)
+            $shiftExpenses = $expenses->filter(fn ($e) => strtolower($e->shift ?: 'pagi') === $shiftKey);
+            $shiftExpenseTotal = (float) $shiftExpenses->sum('amount');
+            $shiftExpenseNotes = $shiftExpenses->map(fn ($e) => ($e->description ?: $e->category) . ': ' . number_format($e->amount, 0, ',', '.'))->implode(', ');
+            $shiftExpenseItems = $shiftExpenses->map(fn ($e) => [
+                'description' => $e->description ?: ($e->notes ?: ($e->category ?: 'Pengeluaran Operasional')),
+                'amount' => (float) $e->amount,
+                'date' => $e->expense_date ? $e->expense_date->format('d/m/Y H:i') : '-',
+                'shift' => strtolower($e->shift ?: 'pagi'),
+            ])->values()->all();
+
             // Sisa kas bersih = uang penjualan tunai + penerimaan pembayaran utang tunai - pengeluaran shift
-            $netCash = (float) max(0, ($totalCash + $shiftDebtPaymentCash) - $halfExpense);
+            $netCash = (float) max(0, ($totalCash + $shiftDebtPaymentCash) - $shiftExpenseTotal);
 
             $shiftData[$shiftKey] = [
                 'label' => $shiftLabel,
@@ -287,6 +298,9 @@ class PosController extends Controller
                 'total_debt' => $totalShiftDebt,
                 'debt_notes' => $debtNotes ?: '-',
                 'debt_items' => $shiftDebts->values()->all(),
+                'total_expenses' => $shiftExpenseTotal,
+                'expense_notes' => $shiftExpenseNotes ?: '-',
+                'expense_items' => $shiftExpenseItems,
                 'total_sales' => $totalShiftSales,
                 'total_money' => $totalUangDanNontunai,
                 'selisih' => $selisih,
@@ -339,8 +353,9 @@ class PosController extends Controller
             } else {
                 $providerName = $ps->product?->provider?->name;
                 $catName = $ps->product?->category;
-                $displayProvider = $providerName ?: ($catName ?: 'Elektrik');
-                if (str_contains(strtolower($displayProvider), 'telkomsel') || str_contains(strtolower($ps->product?->name ?? ''), 'telkomsel')) {
+                $displayProvider = $providerName ?: ($catName ?: ($ps->wallet?->name ?: 'Elektrik'));
+                $combinedName = strtolower(trim(($ps->product?->name ?? '') . ' ' . ($ps->manual_product_name ?? '')));
+                if (str_contains(strtolower($displayProvider), 'telkomsel') || str_contains($combinedName, 'telkomsel')) {
                     $displayProvider = 'TELKOMSEL';
                 }
 
@@ -351,7 +366,7 @@ class PosController extends Controller
                     'date_raw' => $ps->sale_date?->toISOString(),
                     'shift' => strtolower($ps->shift ?: 'pagi'),
                     'provider' => $displayProvider,
-                    'product_name' => $ps->product?->name ?: 'Pulsa',
+                    'product_name' => $ps->product?->name ?: ($ps->manual_product_name ?: 'Pulsa Manual'),
                     'target_number' => $ps->target_number ?: '-',
                     'serial_number' => $ps->serial_number ?: '-',
                     'wallet_name' => $ps->wallet?->name ?: '-',
@@ -439,8 +454,12 @@ class PosController extends Controller
         // Global Expenses
         $totalExpenses = (float) $expenses->sum('amount');
         $expenseList = $expenses->map(fn ($e) => [
+            'id' => $e->id,
+            'reference_number' => $e->reference_number,
+            'category' => $e->category,
             'description' => $e->description ?: ($e->notes ?: ($e->category ?: 'Pengeluaran Operasional')),
             'amount' => (float) $e->amount,
+            'shift' => strtolower($e->shift ?: 'pagi'),
             'date' => $e->expense_date ? $e->expense_date->format('d/m/Y H:i') : '-',
         ])->all();
 
@@ -1355,6 +1374,7 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'customer_name' => ['nullable', 'string', 'max:120'],
+            'customer_phone' => ['nullable', 'string', 'max:50'],
             'shift' => ['nullable', 'string', 'in:pagi,sore'],
             'payment_method' => ['required', 'string', 'in:cash,qris,transfer,debit,utang'],
             'discount' => ['nullable', 'numeric', 'min:0'],
@@ -1365,7 +1385,16 @@ class PosController extends Controller
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        $sale = DB::transaction(function () use ($validated, $request): Sale {
+        $isDebt = ($validated['payment_method'] ?? 'cash') === 'utang';
+        $customerName = trim((string) ($validated['customer_name'] ?? ''));
+
+        if ($isDebt && $customerName === '') {
+            throw ValidationException::withMessages([
+                'customer_name' => 'Nama pelanggan / penghutang wajib diisi untuk transaksi utang.',
+            ]);
+        }
+
+        $sale = DB::transaction(function () use ($validated, $isDebt, $customerName, $request): Sale {
             $productIds = collect($validated['items'])->pluck('product_id')->all();
             $products = Product::query()
                 ->whereIn('id', $productIds)
@@ -1411,7 +1440,6 @@ class PosController extends Controller
 
             $discount = (float) ($validated['discount'] ?? 0);
             $total = max($subtotal - $discount, 0);
-            $isDebt = ($validated['payment_method'] ?? 'cash') === 'utang';
             $cashPaid = (float) ($validated['cash_paid'] ?? 0);
 
             if (! $isDebt && $cashPaid < $total) {
@@ -1420,10 +1448,14 @@ class PosController extends Controller
                 ]);
             }
 
+            $saleNotes = ! empty($validated['customer_phone'])
+                ? 'No. Telp: ' . trim($validated['customer_phone'])
+                : null;
+
             $sale = Sale::create([
                 'invoice_number' => 'INV-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
                 'sale_date' => now(),
-                'customer_name' => $validated['customer_name'] ?? null,
+                'customer_name' => $customerName !== '' ? $customerName : null,
                 'shift' => $validated['shift'] ?? 'pagi',
                 'payment_method' => $validated['payment_method'],
                 'subtotal' => $subtotal,
@@ -1431,6 +1463,7 @@ class PosController extends Controller
                 'total' => $total,
                 'cash_paid' => $cashPaid,
                 'change_amount' => $isDebt ? 0 : ($cashPaid - $total),
+                'notes' => $saleNotes,
             ]);
 
             foreach ($items as $item) {
@@ -1456,26 +1489,43 @@ class PosController extends Controller
 
             if ($isDebt) {
                 $itemNames = collect($items)->map(fn ($i) => $i['product']->name . ' (x' . $i['quantity'] . ')')->implode(', ');
-                Debt::create([
+                $debt = Debt::create([
                     'reference_number' => 'DEBT-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
                     'debt_date' => $sale->sale_date,
-                    'customer_name' => $sale->customer_name ?: 'Pelanggan Umum',
+                    'customer_name' => $customerName,
+                    'customer_phone' => ! empty($validated['customer_phone']) ? trim($validated['customer_phone']) : null,
                     'amount' => $total,
                     'paid_amount' => $cashPaid,
                     'status' => $cashPaid >= $total ? 'paid' : ($cashPaid > 0 ? 'partial' : 'unpaid'),
                     'shift' => $sale->shift,
                     'sale_id' => $sale->id,
-                    'description' => 'Aksesoris: ' . $itemNames,
+                    'description' => 'Penjualan Barang: ' . $itemNames,
                     'notes' => $sale->notes,
                     'created_by' => $request->user()?->id,
                 ]);
+
+                if ($cashPaid > 0) {
+                    DebtPayment::create([
+                        'reference_number' => 'PAY-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
+                        'payment_date' => $sale->sale_date,
+                        'debt_id' => $debt->id,
+                        'customer_name' => $debt->customer_name,
+                        'amount' => $cashPaid,
+                        'payment_method' => 'cash',
+                        'shift' => $sale->shift,
+                        'notes' => 'Uang muka / DP transaksi ' . $sale->invoice_number,
+                        'created_by' => $request->user()?->id,
+                    ]);
+                }
             }
 
             return $sale;
         });
 
         return response()->json([
-            'message' => 'Transaksi berhasil disimpan.',
+            'message' => $isDebt
+                ? 'Transaksi utang atas nama ' . $customerName . ' berhasil disimpan dan disinkronkan ke data utang.'
+                : 'Transaksi berhasil disimpan.',
             'sale' => $sale->load('items.product:id,name,code'),
         ], 201);
     }

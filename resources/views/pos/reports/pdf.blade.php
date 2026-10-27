@@ -265,16 +265,16 @@
 
                 <!-- 4. Pengeluaran Shift -->
                 <div class="payment-box" style="margin-top: -2px;">
-                    <div class="payment-row font-bold">Pengeluaran: Rp {{ number_format(($expenses['total'] ?? 0) / 2, 0, ',', '.') }}</div>
+                    <div class="payment-row font-bold">Pengeluaran: Rp {{ number_format($pagi['total_expenses'] ?? 0, 0, ',', '.') }}</div>
                 </div>
                 <div class="notes-box">
                     <strong>Catatan / Rincian:</strong>
-                    @if (!empty($expenses['items']))
-                        @foreach ($expenses['items'] as $exp)
+                    @if (!empty($pagi['expense_items']))
+                        @foreach ($pagi['expense_items'] as $exp)
                             <div>- {{ $exp['description'] }}: Rp {{ number_format($exp['amount'], 0, ',', '.') }}</div>
                         @endforeach
                     @else
-                        <div>-</div>
+                        <div>{{ $pagi['expense_notes'] ?? '-' }}</div>
                     @endif
                 </div>
 
@@ -296,7 +296,7 @@
                         <div style="font-size: 7px; color: #475569; margin-bottom: 2px;">({{ $pagi['debt_payment_notes'] }})</div>
                     @endif
                     <div class="summary-row font-bold" style="border-top: 1px solid #0f172a; padding-top: 2px; margin-top: 2px;">
-                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format($pagi['net_cash'] ?? max(0, ($pagi['total_cash'] ?? 0) - (($expenses['total'] ?? 0) / 2)), 0, ',', '.') }}</strong>
+                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format($pagi['net_cash'] ?? max(0, ($pagi['total_cash'] ?? 0) - ($pagi['total_expenses'] ?? 0)), 0, ',', '.') }}</strong>
                     </div>
                 </div>
             </td>
@@ -381,11 +381,17 @@
 
                 <!-- 4. Pengeluaran Shift -->
                 <div class="payment-box" style="margin-top: -2px;">
-                    <div class="payment-row font-bold">Pengeluaran: Rp {{ number_format(($expenses['total'] ?? 0) / 2, 0, ',', '.') }}</div>
+                    <div class="payment-row font-bold">Pengeluaran: Rp {{ number_format($sore['total_expenses'] ?? 0, 0, ',', '.') }}</div>
                 </div>
                 <div class="notes-box">
                     <strong>Catatan / Rincian:</strong>
-                    <div>-</div>
+                    @if (!empty($sore['expense_items']))
+                        @foreach ($sore['expense_items'] as $exp)
+                            <div>- {{ $exp['description'] }}: Rp {{ number_format($exp['amount'], 0, ',', '.') }}</div>
+                        @endforeach
+                    @else
+                        <div>{{ $sore['expense_notes'] ?? '-' }}</div>
+                    @endif
                 </div>
 
                 <!-- 5. Rekapitulasi Akhir Shift Sore -->
@@ -406,7 +412,7 @@
                         <div style="font-size: 7px; color: #475569; margin-bottom: 2px;">({{ $sore['debt_payment_notes'] }})</div>
                     @endif
                     <div class="summary-row font-bold" style="border-top: 1px solid #0f172a; padding-top: 2px; margin-top: 2px;">
-                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format($sore['net_cash'] ?? max(0, ($sore['total_cash'] ?? 0) - (($expenses['total'] ?? 0) / 2)), 0, ',', '.') }}</strong>
+                        sisa kas bersih: <strong style="float: right;">Rp {{ number_format($sore['net_cash'] ?? max(0, ($sore['total_cash'] ?? 0) - ($sore['total_expenses'] ?? 0)), 0, ',', '.') }}</strong>
                     </div>
                 </div>
             </td>

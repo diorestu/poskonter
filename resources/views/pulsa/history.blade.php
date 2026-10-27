@@ -177,12 +177,12 @@
                 perPage: 10,
                 defaultSortKey: 'sale_date',
                 defaultSortDir: 'desc',
-                search: (item, query) => [item.reference_number, item.product?.name || '', item.product?.category || '', item.target_number, item.serial_number || '', item.wallet?.name || '', item.customer_name || ''].some((value) => String(value || '').toLowerCase().includes(query)),
+                search: (item, query) => [item.reference_number, item.product?.name || '', item.manual_product_name || '', item.product?.category || '', item.target_number, item.serial_number || '', item.wallet?.name || '', item.customer_name || ''].some((value) => String(value || '').toLowerCase().includes(query)),
                 sorters: {
                     reference_number: (item) => item.reference_number,
                     sale_date: (item) => new Date(item.sale_date).getTime(),
                     provider: (item) => item.product?.category || '',
-                    product: (item) => item.product?.name || '',
+                    product: (item) => item.product?.name || item.manual_product_name || '',
                     target_number: (item) => item.target_number,
                     serial_number: (item) => item.serial_number || '',
                     wallet: (item) => item.wallet?.name || '',
@@ -245,10 +245,10 @@
                         <tr class="${isCancelled ? 'opacity-60 bg-slate-50' : ''}">
                             <td class="font-bold font-mono text-blue-700">${item.reference_number}</td>
                             <td class="whitespace-nowrap">${new Date(item.sale_date).toLocaleString('id-ID')}</td>
-                            <td><span class="badge badge-info">${item.product?.category || '-'}</span></td>
+                            <td><span class="badge badge-info">${item.product?.category || (item.wallet?.name ? 'Elektrik' : '-')}</span></td>
                             <td>
-                                <div class="font-medium">${item.product?.name || '-'}</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">${item.product?.variant || item.product?.category || '-'}</div>
+                                <div class="font-medium">${item.product?.name || item.manual_product_name || '-'}</div>
+                                <div class="text-[11px] text-[color:var(--muted)]">${item.product?.variant || (item.manual_product_name ? 'Manual Input' : (item.product?.category || '-'))}</div>
                             </td>
                             <td class="font-mono">${item.target_number}</td>
                             <td><span class="text-[11px] font-mono">${item.serial_number || '-'}</span></td>

@@ -52,7 +52,7 @@
                     <div class="flex flex-col flex-1 overflow-hidden min-h-0">
                         <div class="mb-3 grid gap-2.5 grid-cols-3 shrink-0">
                             <div>
-                                <label class="mb-1 block font-medium text-[color:var(--muted)]">Pelanggan</label>
+                                <label class="mb-1 block font-medium text-[color:var(--muted)]" id="customerNameLabel">Pelanggan</label>
                                 <input class="field py-1 px-2" type="text" id="customer_name" placeholder="Umum">
                             </div>
                             <div>
@@ -71,6 +71,16 @@
                                     <option value="debit">Debit</option>
                                     <option value="utang">Utang (Belum Lunas)</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        <!-- Banner Peringatan Utang di Sidebar -->
+                        <div id="debtSidebarBanner" class="hidden mb-3 p-2 bg-amber-50 border border-amber-300 rounded text-amber-900 text-xs">
+                            <div class="font-bold flex items-center gap-1 text-[11px]">
+                                <span>⚠️ Transaksi Utang / Bon</span>
+                            </div>
+                            <div class="mt-0.5 text-[11px] text-amber-800">
+                                Nama pelanggan wajib diisi dan akan disinkronkan otomatis ke data utang.
                             </div>
                         </div>
 
@@ -150,8 +160,8 @@
         <div class="modal-card">
             <div class="modal-head flex items-start justify-between gap-3">
                 <div>
-                    <h2 class="font-semibold">Pembayaran</h2>
-                    <p class="mt-1 text-[12px] text-[color:var(--muted)]">Input nominal yang diberikan customer, lalu simpan transaksi.</p>
+                    <h2 class="font-semibold" id="modalPaymentTitle">Pembayaran</h2>
+                    <p class="mt-1 text-[12px] text-[color:var(--muted)]" id="modalPaymentSubtitle">Input nominal yang diberikan customer, lalu simpan transaksi.</p>
                 </div>
                 <button type="button" class="btn btn-secondary" id="closePaymentModal">
                     <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
@@ -159,6 +169,31 @@
                 </button>
             </div>
             <div class="modal-body space-y-4">
+                <!-- Banner Notifikasi Sinkronisasi Utang -->
+                <div id="modalDebtBanner" class="hidden p-3 bg-amber-50 border border-amber-300 rounded text-amber-900 text-xs">
+                    <div class="font-bold flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        <span>Transaksi Penjualan Utang (Bon)</span>
+                    </div>
+                    <div class="mt-1 text-[11px] text-amber-800">
+                        Nama pelanggan wajib diisi. Data penjualan ini akan langsung disinkronkan ke rekapitulasi & buku transaksi utang toko.
+                    </div>
+                </div>
+
+                <!-- Field Nama Pelanggan & No Telepon -->
+                <div class="grid gap-3 md:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block font-medium text-xs" id="modalCustomerNameLabel">
+                            Nama Pelanggan <span id="modalCustomerRequired" class="text-red-500 hidden">* (Wajib Diisi)</span>
+                        </label>
+                        <input class="field text-sm" type="text" id="modal_customer_name" placeholder="Nama pelanggan / penghutang">
+                    </div>
+                    <div id="modalCustomerPhoneWrapper" class="hidden">
+                        <label class="mb-1 block font-medium text-xs">No. HP / WA Pelanggan (Opsional)</label>
+                        <input class="field text-sm" type="text" id="modal_customer_phone" placeholder="08xxxxxxxxxx">
+                    </div>
+                </div>
+
                 <div class="grid gap-3 md:grid-cols-2">
                     <div class="pos-summary">
                         <div class="pos-summary-row">
@@ -171,11 +206,11 @@
                         </div>
                     </div>
                     <div>
-                        <label class="mb-1 block font-medium">Uang Diberikan</label>
+                        <label class="mb-1 block font-medium" id="modalCashPaidLabel">Uang Diberikan</label>
                         <input class="field" type="text" inputmode="numeric" data-number-mask id="cash_paid_modal" value="0">
                         <div class="mt-3 pos-summary">
                             <div class="pos-summary-row">
-                                <span class="text-[color:var(--muted)]">Kembalian</span>
+                                <span class="text-[color:var(--muted)]" id="modalChangeLabel">Kembalian</span>
                                 <strong id="modalChangeText">Rp 0</strong>
                             </div>
                         </div>
@@ -185,7 +220,7 @@
                 <div class="flex gap-2">
                     <button type="button" class="btn btn-primary flex-1" id="savePayment">
                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17l9-10"/><path d="M4 4h16v16H4z"/></svg></span>
-                        <span>Simpan</span>
+                        <span id="savePaymentText">Simpan Transaksi</span>
                     </button>
                     <button type="button" class="btn btn-secondary flex-1" id="saveAndNewPayment">
                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/><path d="M4 4h16v16H4z"/></svg></span>
@@ -293,9 +328,10 @@
                 if (fullReset) {
                     $('#saleForm')[0].reset();
                     $('#payment_method').val('cash');
-                } else {
-                    $('#customer_name').val('');
                 }
+                $('#customer_name').val('');
+                $('#modal_customer_name').val('');
+                $('#modal_customer_phone').val('');
                 setMaskedNumberValue('#discount', 0);
                 setMaskedNumberValue('#cash_paid_modal', 0);
                 $('#paymentModal').addClass('hidden');
@@ -304,11 +340,54 @@
             }
 
             function updatePaymentLabels() {
-                const methodLabel = paymentMethodLabel($('#payment_method').val());
+                const method = $('#payment_method').val();
+                const isDebt = method === 'utang';
+                const methodLabel = paymentMethodLabel(method);
                 $('#paymentMethodText').text(methodLabel);
                 $('#modalPaymentMethodText').text(methodLabel);
                 $('#modalTotalText').text($('#totalText').text());
-                $('#modalChangeText').text(money(cartTotals().change));
+
+                const totals = cartTotals();
+                const paid = maskedNumberValue('#cash_paid_modal');
+
+                if (isDebt) {
+                    $('#debtSidebarBanner').removeClass('hidden');
+                    $('#customerNameLabel').html('Nama Penghutang <span class="text-red-500 font-bold">*</span>');
+                    $('#customer_name').attr('placeholder', 'Nama penghutang (Wajib)').addClass('border-amber-400 bg-amber-50/20');
+
+                    $('#modalPaymentTitle').text('Konfirmasi Penjualan Utang');
+                    $('#modalPaymentSubtitle').text('Pastikan nama penghutang terisi untuk disinkronkan ke data utang.');
+                    $('#modalDebtBanner').removeClass('hidden');
+                    $('#modalCustomerRequired').removeClass('hidden');
+                    $('#modalCustomerPhoneWrapper').removeClass('hidden');
+                    $('#modalCustomerNameLabel').html('Nama Penghutang <span class="text-red-500 font-bold">*</span>');
+                    $('#modal_customer_name').attr('placeholder', 'Masukkan nama yang berutang').addClass('border-amber-400');
+                    $('#modalCashPaidLabel').text('Uang Muka / DP (Opsional, isi 0 jika utang penuh)');
+                    $('#modalChangeLabel').text('Sisa Utang');
+
+                    const remainingDebt = Math.max(0, totals.total - paid);
+                    $('#modalChangeText').text(money(remainingDebt));
+                    $('#modalChangeText').removeClass('text-slate-800').addClass('text-amber-800 font-bold');
+                    $('#savePaymentText').text('Simpan Penjualan Utang');
+                } else {
+                    $('#debtSidebarBanner').addClass('hidden');
+                    $('#customerNameLabel').text('Pelanggan');
+                    $('#customer_name').attr('placeholder', 'Umum').removeClass('border-amber-400 bg-amber-50/20');
+
+                    $('#modalPaymentTitle').text('Pembayaran');
+                    $('#modalPaymentSubtitle').text('Input nominal yang diberikan customer, lalu simpan transaksi.');
+                    $('#modalDebtBanner').addClass('hidden');
+                    $('#modalCustomerRequired').addClass('hidden');
+                    $('#modalCustomerPhoneWrapper').addClass('hidden');
+                    $('#modalCustomerNameLabel').text('Nama Pelanggan (Opsional)');
+                    $('#modal_customer_name').attr('placeholder', 'Nama pelanggan / umum').removeClass('border-amber-400');
+                    $('#modalCashPaidLabel').text('Uang Diberikan');
+                    $('#modalChangeLabel').text('Kembalian');
+
+                    $('#modalChangeText').text(money(totals.change));
+                    $('#modalChangeText').removeClass('text-amber-800 font-bold').addClass('text-slate-800');
+                    $('#savePaymentText').text('Simpan Transaksi');
+                }
             }
 
             function renderRecentSales(items) {
@@ -537,15 +616,38 @@
                     return;
                 }
 
+                const isDebt = $('#payment_method').val() === 'utang';
+                const customerName = ($('#modal_customer_name').val() || $('#customer_name').val() || '').trim();
+
+                if (isDebt && !customerName) {
+                    showAlert('Nama pelanggan / penghutang wajib diisi untuk transaksi utang.', 'error');
+                    if (!$('#paymentModal').hasClass('hidden')) {
+                        $('#modal_customer_name').focus();
+                    } else {
+                        $('#customer_name').focus();
+                    }
+                    return;
+                }
+
+                const cashPaidValue = maskedNumberValue('#cash_paid_modal');
+                const totals = cartTotals();
+
+                if (!isDebt && cashPaidValue < totals.total) {
+                    showAlert('Uang bayar kurang dari total belanja.', 'error');
+                    $('#cash_paid_modal').focus();
+                    return;
+                }
+
                 $.post(window.posConfig.salesUrl, {
-                    customer_name: $('#customer_name').val(),
+                    customer_name: customerName,
+                    customer_phone: isDebt ? ($('#modal_customer_phone').val() || null) : null,
                     shift: $('#shift').val(),
                     payment_method: $('#payment_method').val(),
                     discount: maskedNumberValue('#discount'),
-                    cash_paid: $('#payment_method').val() === 'utang' ? 0 : maskedNumberValue('#cash_paid_modal'),
+                    cash_paid: isDebt ? cashPaidValue : maskedNumberValue('#cash_paid_modal'),
                     items: state.cart.map((item) => ({ product_id: item.id, quantity: item.quantity, serial_number: item.serial_number || null })),
                 }).done((response) => {
-                    showAlert(`${response.message} Invoice ${response.sale.invoice_number}`);
+                    showAlert(response.message || `Transaksi berhasil disimpan. Invoice ${response.sale.invoice_number}`);
                     resetSaleForm(createNew);
                     loadData();
                 }).fail((xhr) => {
@@ -797,14 +899,39 @@
                 $(`.pos-main-panel[data-pos-panel="${tab}"]`).removeClass('hidden');
             });
 
+            $('#customer_name').on('input', function () {
+                $('#modal_customer_name').val($(this).val());
+            });
+
+            $('#modal_customer_name').on('input', function () {
+                $('#customer_name').val($(this).val());
+            });
+
             $('#openPaymentModal').on('click', function () {
                 if (!state.cart.length) {
                     showAlert('Keranjang masih kosong.', 'error');
                     return;
                 }
+
+                const isDebt = $('#payment_method').val() === 'utang';
+                $('#modal_customer_name').val($('#customer_name').val());
+
+                if (isDebt) {
+                    setMaskedNumberValue('#cash_paid_modal', 0);
+                } else {
+                    setMaskedNumberValue('#cash_paid_modal', cartTotals().total);
+                }
+
                 $('#paymentModal').removeClass('hidden');
-                setMaskedNumberValue('#cash_paid_modal', cartTotals().total);
                 updatePaymentLabels();
+
+                setTimeout(() => {
+                    if (isDebt && !$('#modal_customer_name').val().trim()) {
+                        $('#modal_customer_name').focus();
+                    } else if (!isDebt) {
+                        $('#cash_paid_modal').focus();
+                    }
+                }, 50);
             });
 
             $('#closePaymentModal').on('click', function () {

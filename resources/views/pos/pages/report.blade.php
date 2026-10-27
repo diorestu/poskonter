@@ -903,10 +903,10 @@
                 $('#pagiDebtNotes').text(pagi.debt_notes ? `Catatan / Rincian: ${pagi.debt_notes}` : 'Catatan / Rincian: -');
 
                 // Pagi Expenses
-                const halfExpense = (data.expenses?.total || 0) / 2;
-                $('#pagiExpenseAmount').text(money(halfExpense));
-                const expNotes = (data.expenses?.items || []).map((e) => `${e.description}: ${money(e.amount)}`).join(', ');
-                $('#pagiExpenseNotes').text(expNotes ? `Catatan: ${expNotes}` : 'Catatan: -');
+                const pagiExpense = pagi.total_expenses !== undefined ? Number(pagi.total_expenses) : 0;
+                $('#pagiExpenseAmount').text(money(pagiExpense));
+                const pagiNotes = pagi.expense_notes && pagi.expense_notes !== '-' ? pagi.expense_notes : '';
+                $('#pagiExpenseNotes').text(pagiNotes ? `Catatan: ${pagiNotes}` : 'Catatan: -');
 
                 // Pagi Summary & Selisih
                 $('#pagiTotalSales').text(money(pagi.total_sales || 0));
@@ -926,7 +926,7 @@
 
                 $('#pagiDebtPaymentAmount').text(money(pagi.total_debt_payment || 0));
                 $('#pagiDebtPaymentNotes').text(pagi.debt_payment_notes ? `Rincian: ${pagi.debt_payment_notes}` : 'Rincian: -');
-                $('#pagiNetCash').text(money(pagi.net_cash !== undefined ? pagi.net_cash : Math.max(0, ((pagi.total_cash || 0) + (pagi.debt_payment_cash || 0)) - halfExpense)));
+                $('#pagiNetCash').text(money(pagi.net_cash !== undefined ? pagi.net_cash : Math.max(0, ((pagi.total_cash || 0) + (pagi.debt_payment_cash || 0)) - pagiExpense)));
 
                 // --- SHIFT SORE ---
                 const sore = data.shifts?.sore || {};
@@ -961,8 +961,10 @@
                 $('#soreDebtNotes').text(sore.debt_notes ? `Catatan / Rincian: ${sore.debt_notes}` : 'Catatan / Rincian: -');
 
                 // Sore Expenses
-                $('#soreExpenseAmount').text(money(halfExpense));
-                $('#soreExpenseNotes').text(expNotes ? `Catatan: ${expNotes}` : 'Catatan: -');
+                const soreExpense = sore.total_expenses !== undefined ? Number(sore.total_expenses) : 0;
+                $('#soreExpenseAmount').text(money(soreExpense));
+                const soreNotes = sore.expense_notes && sore.expense_notes !== '-' ? sore.expense_notes : '';
+                $('#soreExpenseNotes').text(soreNotes ? `Catatan: ${soreNotes}` : 'Catatan: -');
 
                 // Sore Summary & Selisih
                 $('#soreTotalSales').text(money(sore.total_sales || 0));
@@ -982,7 +984,7 @@
 
                 $('#soreDebtPaymentAmount').text(money(sore.total_debt_payment || 0));
                 $('#soreDebtPaymentNotes').text(sore.debt_payment_notes ? `Rincian: ${sore.debt_payment_notes}` : 'Rincian: -');
-                $('#soreNetCash').text(money(sore.net_cash !== undefined ? sore.net_cash : Math.max(0, ((sore.total_cash || 0) + (sore.debt_payment_cash || 0)) - halfExpense)));
+                $('#soreNetCash').text(money(sore.net_cash !== undefined ? sore.net_cash : Math.max(0, ((sore.total_cash || 0) + (sore.debt_payment_cash || 0)) - soreExpense)));
 
                 // --- DETAIL TABLES & TABS ---
                 $('#tabCountAll').text(data.summary.total_transactions || 0);
@@ -1018,7 +1020,10 @@
                 $('#expenseListContainer').html(expenses.length ? expenses.map((e) => `
                     <div class="border border-[#e2e8f0] bg-white p-2.5 rounded flex items-center justify-between text-xs">
                         <div>
-                            <div class="font-semibold text-rose-700">${e.description}</div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold text-rose-700">${e.description}</span>
+                                <span class="badge ${e.shift === 'sore' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'} uppercase font-bold text-[9px] px-1.5 py-0.5 rounded">${e.shift === 'sore' ? 'Shift Sore' : 'Shift Pagi'}</span>
+                            </div>
                             <div class="text-[11px] text-[color:var(--muted)]">${e.date}</div>
                         </div>
                         <div class="font-bold text-rose-700">${money(e.amount)}</div>

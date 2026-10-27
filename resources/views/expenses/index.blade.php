@@ -21,6 +21,13 @@
                             <input class="field" type="datetime-local" id="expense_date">
                         </div>
                         <div>
+                            <label class="mb-1 block font-medium">Shift Kas</label>
+                            <select class="select" id="expense_shift">
+                                <option value="pagi">Shift Pagi (Kas Pagi)</option>
+                                <option value="sore">Shift Sore (Kas Sore)</option>
+                            </select>
+                        </div>
+                        <div>
                             <label class="mb-1 block font-medium">Kategori</label>
                             <input class="field" type="text" id="expense_category" placeholder="Operasional / Transport / Konsumsi" required>
                         </div>
@@ -60,6 +67,7 @@
                                 <tr>
                                     <th data-sort="reference_number">Ref</th>
                                     <th data-sort="expense_date">Tanggal</th>
+                                    <th data-sort="shift">Shift</th>
                                     <th data-sort="category">Kategori</th>
                                     <th data-sort="description">Deskripsi</th>
                                     <th data-sort="amount">Nominal</th>
@@ -92,6 +100,7 @@
                 defaultSortDir: 'desc',
                 search: (expense, query) => [
                     expense.reference_number,
+                    expense.shift || '',
                     expense.category,
                     expense.description,
                     expense.notes || '',
@@ -100,6 +109,7 @@
                 sorters: {
                     reference_number: (expense) => expense.reference_number,
                     expense_date: (expense) => expense.expense_date,
+                    shift: (expense) => expense.shift || 'pagi',
                     category: (expense) => expense.category,
                     description: (expense) => expense.description,
                     amount: (expense) => Number(expense.amount),
@@ -109,6 +119,8 @@
             function resetForm() {
                 $('#expenseForm')[0].reset();
                 $('#expense_date').val(new Date().toISOString().slice(0, 16));
+                const currentHour = new Date().getHours();
+                $('#expense_shift').val(currentHour >= 14 ? 'sore' : 'pagi');
                 setMaskedNumberValue('#expense_amount', 0);
             }
 
@@ -132,6 +144,11 @@
                     <tr>
                         <td class="font-semibold">${expense.reference_number}</td>
                         <td>${new Date(expense.expense_date).toLocaleString('id-ID')}</td>
+                        <td>
+                            <span class="badge ${expense.shift === 'sore' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'} uppercase font-bold text-[10px]">
+                                ${expense.shift === 'sore' ? 'Sore' : 'Pagi'}
+                            </span>
+                        </td>
                         <td><span class="badge badge-info">${expense.category}</span></td>
                         <td>
                             <div class="font-medium">${expense.description}</div>
@@ -140,7 +157,7 @@
                         <td class="font-semibold">${money(expense.amount)}</td>
                         <td>${expense.creator?.name || '-'}</td>
                     </tr>
-                `).join('') : '<tr><td colspan="6" class="text-center text-[color:var(--muted)]">Belum ada data pengeluaran.</td></tr>');
+                `).join('') : '<tr><td colspan="7" class="text-center text-[color:var(--muted)]">Belum ada data pengeluaran.</td></tr>');
                 expenseTable.syncSortUi('#expenseTableWrap thead');
                 expenseTable.renderFooter('#expensePagination', meta);
             }
@@ -196,6 +213,7 @@
 
                 $.post(urls.store, {
                     expense_date: $('#expense_date').val() ? $('#expense_date').val().replace('T', ' ') : '',
+                    shift: $('#expense_shift').val() || 'pagi',
                     category: $('#expense_category').val(),
                     description: $('#expense_description').val(),
                     amount: maskedNumberValue('#expense_amount'),

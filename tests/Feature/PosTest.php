@@ -1816,6 +1816,316 @@ class PosTest extends TestCase
         $this->assertEquals(1, $pDataAfterCancel['available_serials_count']);
         $this->assertEquals('TSEL999888777', $pDataAfterCancel['available_serials'][0]['serial_number']);
     }
+
+    public function test_manual_electric_sale_can_be_created_with_custom_name_price_and_cost(): void
+    {
+        $this->signIn('admin');
+
+        $wallet = Wallet::create([
+            'name' => 'Dompet Multi Server',
+            'balance' => 100000,
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/ajax/pulsa/sales', [
+            'is_manual' => true,
+            'manual_product_name' => 'Token Listrik PLN 50.000',
+            'price' => 52500,
+            'cost_price' => 50500,
+            'wallet_id' => $wallet->id,
+            'target_number' => '14234567890',
+            'customer_name' => 'Pak Budi',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'cash_paid' => 52500,
+            'notes' => 'Token PLN manual',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('sale.manual_product_name', 'Token Listrik PLN 50.000')
+            ->assertJsonPath('sale.price', '52500.00')
+            ->assertJsonPath('sale.cost_amount', '50500.00');
+
+        $saleId = $response->json('sale.id');
+
+        // Wallet balance deducted from 100,000 to 49,500
+        $this->assertEquals(49500, (float) $wallet->fresh()->balance);
+
+        $this->assertDatabaseHas('pulsa_sales', [
+            'id' => $saleId,
+            'product_id' => null,
+            'manual_product_name' => 'Token Listrik PLN 50.000',
+            'price' => 52500,
+            'cost_amount' => 50500,
+            'wallet_id' => $wallet->id,
+            'target_number' => '14234567890',
+        ]);
+
+        // Check report data includes this manual sale
+        $today = now()->format('Y-m-d');
+        $reportRes = $this->getJson("/ajax/report/data?start_date={$today}&end_date={$today}");
+        $reportRes->assertOk();
+        $detailedPulsa = collect($reportRes->json('details.pulsa'));
+        $found = $detailedPulsa->firstWhere('id', 'PLS-' . $saleId);
+        $this->assertNotNull($found);
+        $this->assertEquals('Token Listrik PLN 50.000', $found['product_name']);
+        $this->assertEquals(52500, $found['price']);
+        $this->assertEquals(50500, $found['cost_price']);
+
+        // Check history data includes this manual sale
+        $historyRes = $this->getJson('/ajax/sales/history-data');
+        $historyRes->assertOk();
+        $historyPulsa = collect($historyRes->json('pulsa_sales'))->firstWhere('id', $saleId);
+        $this->assertNotNull($historyPulsa);
+        $this->assertEquals('Token Listrik PLN 50.000', $historyPulsa['manual_product_name']);
+
+        // Cancel the manual transaction and verify wallet balance is refunded
+        $cancelRes = $this->postJson("/ajax/pulsa/sales/{$saleId}/cancel", [
+            'notes' => 'Salah no meter',
+        ]);
+
+        $cancelRes->assertOk()
+            ->assertJsonPath('sale.status', 'cancelled');
+
+        // Wallet refunded back to 100,000
+        $this->assertEquals(100000, (float) $wallet->fresh()->balance);
+    }
+
+    public function test_catalog_electric_sale_with_custom_price_and_cost(): void
+    {
+        $this->signIn('cashier');
+
+        $provider = Provider::create(['name' => 'Telkomsel']);
+        $wallet = Wallet::create([
+            'name' => 'Dompet Digipos',
+            'balance' => 80000,
+            'is_active' => true,
+        ]);
+        $provider->wallets()->attach($wallet->id);
+
+        $product = Product::create([
+            'code' => 'PLS-10',
+            'name' => 'Pulsa 10.000',
+            'product_type' => 'pulsa',
+            'provider_id' => $provider->id,
+            'category' => 'TELKOMSEL',
+            'price' => 12000,
+            'cost_price' => 10500,
+            'stock' => 0,
+            'is_active' => true,
+        ]);
+
+        // Sale with price and cost overridden
+        $response = $this->postJson('/ajax/pulsa/sales', [
+            'product_id' => $product->id,
+            'price' => 13500, // custom price
+            'cost_price' => 11000, // custom cost
+            'wallet_id' => $wallet->id,
+            'target_number' => '081234567890',
+            'payment_method' => 'cash',
+            'cash_paid' => 13500,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('sale.price', '13500.00')
+            ->assertJsonPath('sale.cost_amount', '11000.00');
+
+        // Wallet deducted by 11,000 (80,000 - 11,000 = 69,000)
+        $this->assertEquals(69000, (float) $wallet->fresh()->balance);
+    }
+
+    public function test_expenses_can_be_recorded_with_shift_and_are_separated_in_reports(): void
+    {
+        $this->signIn('admin');
+        $today = today()->toDateString();
+
+        // 1. Create morning expense
+        $responsePagi = $this->postJson('/ajax/expenses', [
+            'expense_date' => now()->setTime(9, 0)->toDateTimeString(),
+            'shift' => 'pagi',
+            'category' => 'Operasional',
+            'description' => 'Beli token listrik pagi',
+            'amount' => 20000,
+        ]);
+        $responsePagi->assertCreated()
+            ->assertJsonPath('expense.shift', 'pagi');
+
+        // 2. Create evening expense
+        $responseSore = $this->postJson('/ajax/expenses', [
+            'expense_date' => now()->setTime(17, 0)->toDateTimeString(),
+            'shift' => 'sore',
+            'category' => 'Operasional',
+            'description' => 'Makan malam kasir sore',
+            'amount' => 35000,
+        ]);
+        $responseSore->assertCreated()
+            ->assertJsonPath('expense.shift', 'sore');
+
+        // 3. Create POS sales for morning and evening
+        $product = Product::create([
+            'code' => 'ACC-01',
+            'name' => 'Kabel Data',
+            'product_type' => 'regular',
+            'price' => 50000,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        // Sale morning (cash 50,000)
+        $this->postJson('/ajax/sales', [
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'cash_paid' => 50000,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                    'price' => 50000,
+                ],
+            ],
+        ])->assertCreated();
+
+        // Sale evening (cash 100,000)
+        $this->postJson('/ajax/sales', [
+            'shift' => 'sore',
+            'payment_method' => 'cash',
+            'cash_paid' => 100000,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 2,
+                    'price' => 50000,
+                ],
+            ],
+        ])->assertCreated();
+
+        // 4. Fetch daily report
+        $reportRes = $this->getJson("/ajax/report/data?start_date={$today}&end_date={$today}");
+        $reportRes->assertOk();
+
+        $data = $reportRes->json();
+
+        // Verify shift pagi
+        $this->assertEquals(20000, $data['shifts']['pagi']['total_expenses']);
+        $this->assertEquals(50000, $data['shifts']['pagi']['total_cash']);
+        // Net cash pagi = 50,000 - 20,000 = 30,000
+        $this->assertEquals(30000, $data['shifts']['pagi']['net_cash']);
+
+        // Verify shift sore
+        $this->assertEquals(35000, $data['shifts']['sore']['total_expenses']);
+        $this->assertEquals(100000, $data['shifts']['sore']['total_cash']);
+        // Net cash sore = 100,000 - 35,000 = 65,000
+        $this->assertEquals(65000, $data['shifts']['sore']['net_cash']);
+
+        // Verify global expenses
+        $this->assertEquals(55000, $data['expenses']['total']);
+
+        // 5. Test PDF export works
+        $pdfRes = $this->get("/report/pdf?start_date={$today}&end_date={$today}&view=preview");
+        $pdfRes->assertOk();
+    }
+
+    public function test_pos_sale_on_debt_requires_customer_name_and_syncs_with_debt_records(): void
+    {
+        $this->signIn('cashier');
+
+        $product = Product::create([
+            'code' => 'BRG-UTG-01',
+            'name' => 'Headset Bluetooth',
+            'product_type' => 'regular',
+            'unit' => 'pcs',
+            'price' => 75000,
+            'cost_price' => 50000,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        // 1. Utang without customer_name must be rejected
+        $responseFailed = $this->postJson('/ajax/sales', [
+            'customer_name' => '',
+            'shift' => 'pagi',
+            'payment_method' => 'utang',
+            'discount' => 0,
+            'cash_paid' => 0,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                    'price' => 75000,
+                ],
+            ],
+        ]);
+
+        $responseFailed->assertStatus(422)
+            ->assertJsonValidationErrors(['customer_name']);
+
+        // 2. Utang with customer_name and phone succeeds and synchronizes with debts
+        $responseSuccess = $this->postJson('/ajax/sales', [
+            'customer_name' => 'Pak Haji Komar',
+            'customer_phone' => '081299887766',
+            'shift' => 'pagi',
+            'payment_method' => 'utang',
+            'discount' => 0,
+            'cash_paid' => 25000, // DP 25.000
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                    'price' => 75000,
+                ],
+            ],
+        ]);
+
+        $responseSuccess->assertCreated()
+            ->assertJsonPath('sale.customer_name', 'Pak Haji Komar')
+            ->assertJsonPath('sale.payment_method', 'utang')
+            ->assertJsonPath('sale.total', '75000.00');
+
+        $saleId = $responseSuccess->json('sale.id');
+
+        // Verify debt record created and synchronized
+        $this->assertDatabaseHas('debts', [
+            'sale_id' => $saleId,
+            'customer_name' => 'Pak Haji Komar',
+            'customer_phone' => '081299887766',
+            'amount' => 75000,
+            'paid_amount' => 25000,
+            'status' => 'partial',
+            'shift' => 'pagi',
+        ]);
+
+        // Verify DP payment created in debt_payments
+        $this->assertDatabaseHas('debt_payments', [
+            'customer_name' => 'Pak Haji Komar',
+            'amount' => 25000,
+            'payment_method' => 'cash',
+            'shift' => 'pagi',
+        ]);
+
+        // Verify debt shows up in unpaid debts endpoint
+        $unpaidResponse = $this->getJson('/ajax/debts/unpaid');
+        $unpaidResponse->assertOk();
+        $debtsList = collect($unpaidResponse->json());
+        $debtItem = $debtsList->firstWhere('customer_name', 'Pak Haji Komar');
+        $this->assertNotNull($debtItem);
+        $this->assertEquals(75000, (float) $debtItem['amount']);
+        $this->assertEquals(25000, (float) $debtItem['paid_amount']);
+
+        // 3. Cancelling the sale cancels the linked debt
+        $cancelResponse = $this->postJson("/ajax/sales/{$saleId}/cancel", [
+            'notes' => 'Pelanggan membatalkan pesanan',
+        ]);
+        $cancelResponse->assertOk();
+
+        $this->assertDatabaseHas('debts', [
+            'sale_id' => $saleId,
+            'status' => 'cancelled',
+        ]);
+
+        // Cancelled debt must no longer appear in unpaid debts list
+        $unpaidAfterCancel = $this->getJson('/ajax/debts/unpaid');
+        $this->assertNull(collect($unpaidAfterCancel->json())->firstWhere('sale_id', $saleId));
+    }
 }
 
 

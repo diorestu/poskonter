@@ -239,7 +239,11 @@ class PulsaController extends Controller
     public function storeSale(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'product_id' => ['required', 'integer', 'exists:products,id'],
+            'is_manual' => ['nullable', 'boolean'],
+            'product_id' => ['nullable', 'integer', 'exists:products,id'],
+            'manual_product_name' => ['nullable', 'string', 'max:120'],
+            'price' => ['nullable', 'numeric', 'min:0'],
+            'cost_price' => ['nullable', 'numeric', 'min:0'],
             'wallet_id' => ['required', 'integer', 'exists:wallets,id'],
             'customer_name' => ['nullable', 'string', 'max:120'],
             'target_number' => ['required', 'string', 'max:30'],
@@ -250,30 +254,7 @@ class PulsaController extends Controller
         ]);
 
         $sale = DB::transaction(function () use ($validated, $request): PulsaSale {
-            $product = Product::query()->lockForUpdate()->findOrFail($validated['product_id']);
             $wallet = Wallet::query()->lockForUpdate()->findOrFail($validated['wallet_id']);
-
-            if (! $product->is_active || ! $product->isPulsa()) {
-                throw ValidationException::withMessages([
-                    'product_id' => 'Produk pulsa tidak tersedia.',
-                ]);
-            }
-
-            $sourceWalletIds = $product->provider_id
-                ? ($product->provider()->first()?->wallets()->pluck('wallets.id') ?? collect())
-                : $product->sourceWallets()->pluck('wallets.id');
-
-            if ($sourceWalletIds->isEmpty()) {
-                throw ValidationException::withMessages([
-                    'product_id' => 'Produk pulsa belum memiliki sumber dompet saldo.',
-                ]);
-            }
-
-            if (! $sourceWalletIds->contains($wallet->id)) {
-                throw ValidationException::withMessages([
-                    'wallet_id' => 'Dompet yang dipilih tidak terdaftar sebagai sumber saldo produk ini.',
-                ]);
-            }
 
             if (! $wallet->is_active) {
                 throw ValidationException::withMessages([
@@ -281,14 +262,72 @@ class PulsaController extends Controller
                 ]);
             }
 
-            $price = (float) $product->price;
-            $costAmount = (float) $product->cost_price;
+            $isManual = filter_var($request->input('is_manual'), FILTER_VALIDATE_BOOLEAN)
+                || empty($validated['product_id'])
+                || ! empty($validated['manual_product_name']);
+
+            $product = null;
+            if (! empty($validated['product_id'])) {
+                $product = Product::query()->lockForUpdate()->find($validated['product_id']);
+            }
+
+            if (! $isManual) {
+                if (! $product || ! $product->is_active || ! $product->isPulsa()) {
+                    throw ValidationException::withMessages([
+                        'product_id' => 'Produk pulsa tidak tersedia.',
+                    ]);
+                }
+
+                $sourceWalletIds = $product->provider_id
+                    ? ($product->provider()->first()?->wallets()->pluck('wallets.id') ?? collect())
+                    : $product->sourceWallets()->pluck('wallets.id');
+
+                if ($sourceWalletIds->isEmpty()) {
+                    throw ValidationException::withMessages([
+                        'product_id' => 'Produk pulsa belum memiliki sumber dompet saldo.',
+                    ]);
+                }
+
+                if (! $sourceWalletIds->contains($wallet->id)) {
+                    throw ValidationException::withMessages([
+                        'wallet_id' => 'Dompet yang dipilih tidak terdaftar sebagai sumber saldo produk ini.',
+                    ]);
+                }
+            } else {
+                $manualName = trim($validated['manual_product_name'] ?? '');
+                if ($manualName === '' && ! $product) {
+                    throw ValidationException::withMessages([
+                        'manual_product_name' => 'Nama produk manual wajib diisi jika tidak memilih produk katalog.',
+                    ]);
+                }
+            }
+
+            if (isset($validated['price']) && $validated['price'] !== '' && $validated['price'] !== null) {
+                $price = (float) $validated['price'];
+            } elseif ($product) {
+                $price = (float) $product->price;
+            } else {
+                throw ValidationException::withMessages([
+                    'price' => 'Harga jual wajib diisi.',
+                ]);
+            }
+
+            if (isset($validated['cost_price']) && $validated['cost_price'] !== '' && $validated['cost_price'] !== null) {
+                $costAmount = (float) $validated['cost_price'];
+            } elseif ($product) {
+                $costAmount = (float) $product->cost_price;
+            } else {
+                throw ValidationException::withMessages([
+                    'cost_price' => 'Nilai potong saldo (modal) wajib diisi.',
+                ]);
+            }
+
             $isDebt = ($validated['payment_method'] ?? 'cash') === 'utang';
             $cashPaid = (float) ($validated['cash_paid'] ?? 0);
 
             if ($wallet->balance < $costAmount) {
                 throw ValidationException::withMessages([
-                    'wallet_id' => 'Saldo dompet tidak mencukupi.',
+                    'wallet_id' => 'Saldo dompet tidak mencukupi untuk memotong modal Rp ' . number_format($costAmount, 0, ',', '.') . '. Saldo saat ini: Rp ' . number_format($wallet->balance, 0, ',', '.') . '.',
                 ]);
             }
 
@@ -300,10 +339,15 @@ class PulsaController extends Controller
 
             $wallet->decrement('balance', $costAmount);
 
+            $manualProductName = ! empty($validated['manual_product_name'])
+                ? trim($validated['manual_product_name'])
+                : null;
+
             $sale = PulsaSale::create([
                 'reference_number' => 'PLS-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
                 'sale_date' => now(),
-                'product_id' => $product->id,
+                'product_id' => $product?->id,
+                'manual_product_name' => $manualProductName,
                 'wallet_id' => $wallet->id,
                 'customer_name' => $validated['customer_name'] ?? null,
                 'target_number' => $validated['target_number'],
@@ -318,6 +362,7 @@ class PulsaController extends Controller
             ]);
 
             if ($isDebt) {
+                $itemTitle = $manualProductName ?: ($product?->name ?? 'Pulsa');
                 Debt::create([
                     'reference_number' => 'DEBT-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
                     'debt_date' => $sale->sale_date,
@@ -328,7 +373,7 @@ class PulsaController extends Controller
                     'status' => $cashPaid >= $price ? 'paid' : ($cashPaid > 0 ? 'partial' : 'unpaid'),
                     'shift' => $sale->shift,
                     'pulsa_sale_id' => $sale->id,
-                    'description' => 'Pulsa: ' . ($product->name ?? 'Pulsa') . ' (' . $sale->target_number . ')',
+                    'description' => 'Pulsa: ' . $itemTitle . ' (' . $sale->target_number . ')',
                     'notes' => $sale->notes,
                     'created_by' => $request->user()?->id,
                 ]);
@@ -386,7 +431,7 @@ class PulsaController extends Controller
             }
 
             // Jika produk fisik/voucher yang memotong stok, kembalikan stok
-            $product = Product::query()->lockForUpdate()->find($pulsaSale->product_id);
+            $product = $pulsaSale->product_id ? Product::query()->lockForUpdate()->find($pulsaSale->product_id) : null;
             $refUpper = strtoupper(trim($pulsaSale->reference_number ?? ''));
             $isVoucher = str_starts_with($refUpper, 'VCR')
                 || ! empty($pulsaSale->serial_number)

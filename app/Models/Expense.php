@@ -13,6 +13,7 @@ class Expense extends Model
     protected $fillable = [
         'reference_number',
         'expense_date',
+        'shift',
         'category',
         'description',
         'amount',

@@ -38,6 +38,7 @@ class ExpenseController extends Controller
     {
         $validated = $request->validate([
             'expense_date' => ['nullable', 'date'],
+            'shift' => ['nullable', 'string', 'in:pagi,sore'],
             'category' => ['required', 'string', 'max:80'],
             'description' => ['required', 'string', 'max:160'],
             'amount' => ['required', 'numeric', 'min:1'],
@@ -47,6 +48,7 @@ class ExpenseController extends Controller
         $expense = Expense::create([
             'reference_number' => 'EXP-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
             'expense_date' => $validated['expense_date'] ?? now(),
+            'shift' => $validated['shift'] ?? 'pagi',
             'category' => $validated['category'],
             'description' => $validated['description'],
             'amount' => $validated['amount'],
