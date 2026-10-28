@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/master-data/produk-fisik', [PosController::class, 'masterPhysical'])->name('master.physical.index');
         Route::get('/master-data/produk-elektrik', [PosController::class, 'masterElectric'])->name('master.electric.index');
         Route::get('/master-data/produk-voucher', [PosController::class, 'masterVoucher'])->name('master.voucher.index');
+        Route::get('/master-data/produk-perdana', [PosController::class, 'masterPerdana'])->name('master.perdana.index');
         Route::get('/master-data/dompet-saldo', [PulsaController::class, 'walletSettings'])->name('master.wallets.index');
         Route::get('/user-management', [UserManagementController::class, 'index'])->name('users.index');
         Route::get('/database/export', [DatabaseTransferController::class, 'export'])->name('database.export');

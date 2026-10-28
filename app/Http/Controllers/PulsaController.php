@@ -896,8 +896,33 @@ class PulsaController extends Controller
         $todayCost = (float) $todaySales->sum('cost_amount');
         $todayProfit = $todayTotal - $todayCost;
 
+        $perdanaProducts = Product::query()
+            ->where(function ($q): void {
+                $q->where('product_type', 'perdana')
+                  ->orWhere('category', 'like', '%perdana%')
+                  ->orWhere('name', 'like', '%perdana%');
+            })
+            ->where('product_type', '!=', 'pulsa')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Product $p) => [
+                'id' => $p->id,
+                'code' => $p->code,
+                'name' => $p->name,
+                'category' => $p->category ?: 'Perdana',
+                'provider' => $p->category ?: 'Perdana',
+                'variant' => $p->variant ?: '-',
+                'price' => (float) $p->price,
+                'cost_price' => (float) $p->cost_price,
+                'stock' => (int) $p->stock,
+                'unit' => $p->unit ?: 'pcs',
+                'serial_number' => $p->serial_number,
+                'image_url' => $p->image_path ? Storage::disk('public')->url($p->image_path) : null,
+            ]);
+
         return response()->json([
             'sales' => $recentSales,
+            'products' => $perdanaProducts,
             'summary' => [
                 'today_total' => $todayTotal,
                 'today_count' => $todayCount,

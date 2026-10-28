@@ -802,6 +802,11 @@ class PosController extends Controller
         return view('pos.pages.master-voucher');
     }
 
+    public function masterPerdana(): View
+    {
+        return view('pos.pages.master-perdana');
+    }
+
     public function dashboard(): JsonResponse
     {
         $expiringProducts = $this->getExpiringStock(30);
@@ -994,7 +999,7 @@ class PosController extends Controller
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50', 'unique:products,code'],
             'name' => ['required', 'string', 'max:120'],
-            'product_type' => ['required', 'string', 'in:regular,pulsa,voucher'],
+            'product_type' => ['required', 'string', 'in:regular,pulsa,voucher,perdana'],
             'category' => ['nullable', 'string', 'max:80'],
             'provider_id' => ['nullable', 'integer', 'exists:providers,id'],
             'variant' => ['nullable', 'string', 'max:80'],
@@ -1019,7 +1024,7 @@ class PosController extends Controller
             $provider = $this->resolvePulsaProvider($validated);
             $validated['category'] = $provider->name;
             $validated['provider_id'] = $provider->id;
-        } elseif (($validated['product_type'] ?? null) === 'voucher') {
+        } elseif (in_array(($validated['product_type'] ?? null), ['voucher', 'perdana'], true)) {
             if (!empty($validated['provider_id'])) {
                 $provider = Provider::find($validated['provider_id']);
                 if ($provider && empty($validated['category'])) {
@@ -1087,7 +1092,7 @@ class PosController extends Controller
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50', Rule::unique('products', 'code')->ignore($product->id)],
             'name' => ['required', 'string', 'max:120'],
-            'product_type' => ['nullable', 'string', 'in:regular,pulsa,voucher'],
+            'product_type' => ['nullable', 'string', 'in:regular,pulsa,voucher,perdana'],
             'category' => ['nullable', 'string', 'max:80'],
             'provider_id' => ['nullable', 'integer', 'exists:providers,id'],
             'variant' => ['nullable', 'string', 'max:80'],
@@ -1115,7 +1120,7 @@ class PosController extends Controller
             $provider = $this->resolvePulsaProvider($validated);
             $validated['category'] = $provider->name;
             $validated['provider_id'] = $provider->id;
-        } elseif ($targetType === 'voucher') {
+        } elseif (in_array($targetType, ['voucher', 'perdana'], true)) {
             if (!empty($validated['provider_id'])) {
                 $provider = Provider::find($validated['provider_id']);
                 if ($provider && empty($validated['category'])) {
@@ -1607,6 +1612,7 @@ class PosController extends Controller
             'provider' => $product->isPulsa() ? $product->category : ($product->provider?->name ?? $product->category),
             'variant' => $product->variant,
             'product_type' => $product->product_type,
+            'is_perdana' => $product->isPerdana(),
             'serial_number' => $product->serial_number,
             'available_serials' => $serials,
             'available_serials_count' => count($serials),

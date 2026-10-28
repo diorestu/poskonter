@@ -340,6 +340,7 @@ class PosTest extends TestCase
         $this->get('/master-data/produk-fisik')->assertOk()->assertSee('Master Produk Fisik');
         $this->get('/master-data/produk-elektrik')->assertOk()->assertSee('Master Produk Elektrik');
         $this->get('/master-data/produk-voucher')->assertOk()->assertSee('Master Produk Voucher');
+        $this->get('/master-data/produk-perdana')->assertOk()->assertSee('Master Produk Kartu Perdana');
         $this->get('/master-data/dompet-saldo')->assertOk()->assertSee('Dompet Saldo');
     }
 
@@ -2760,6 +2761,60 @@ class PosTest extends TestCase
         $this->assertEquals(8, $product->fresh()->stock);
         // Cost price is updated to latest (29000)
         $this->assertEquals(29000, (float) $product->fresh()->cost_price);
+    }
+
+    public function test_perdana_product_can_be_created_from_ajax_endpoint_and_shows_in_catalog(): void
+    {
+        $admin = $this->signIn('admin');
+
+        // 1. Check perdana page contains form input produk perdana
+        $pageResponse = $this->get('/kartu-perdana');
+        $pageResponse->assertOk()
+            ->assertSee('Form Input Produk Perdana')
+            ->assertSee('Katalog Kartu Perdana');
+
+        // 2. Create product kartu perdana via ajax
+        $createResponse = $this->postJson('/ajax/products', [
+            'code' => 'PRD-TSEL-14GB',
+            'name' => 'Perdana Telkomsel Kuota 14GB',
+            'product_type' => 'perdana',
+            'category' => 'Telkomsel',
+            'variant' => '14 GB / 30 Hari',
+            'unit' => 'pcs',
+            'price' => 35000,
+            'cost_price' => 28000,
+            'stock' => 10,
+            'minimum_stock' => 2,
+            'serial_number' => '896212345678',
+        ]);
+
+        $createResponse->assertCreated()
+            ->assertJsonPath('product.code', 'PRD-TSEL-14GB')
+            ->assertJsonPath('product.product_type', 'perdana');
+
+        $this->assertDatabaseHas('products', [
+            'code' => 'PRD-TSEL-14GB',
+            'product_type' => 'perdana',
+            'stock' => 10,
+            'price' => 35000,
+            'cost_price' => 28000,
+        ]);
+
+        // 3. Verify it shows up in perdana dashboard products catalog
+        $dashResponse = $this->getJson('/ajax/perdana/dashboard');
+        $dashResponse->assertOk()
+            ->assertJsonStructure([
+                'sales',
+                'products',
+                'summary',
+            ]);
+
+        $catalog = collect($dashResponse->json('products'));
+        $found = $catalog->firstWhere('code', 'PRD-TSEL-14GB');
+        $this->assertNotNull($found);
+        $this->assertEquals('Perdana Telkomsel Kuota 14GB', $found['name']);
+        $this->assertEquals(10, $found['stock']);
+        $this->assertEquals(35000, (float) $found['price']);
     }
 }
 
