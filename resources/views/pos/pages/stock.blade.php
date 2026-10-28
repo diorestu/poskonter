@@ -45,7 +45,7 @@
                                                 <line x1="7" y1="12" x2="17" y2="12"/>
                                             </svg>
                                         </span>
-                                        <span>📷 Scan Barcode</span>
+                                        <span>Scan Barcode</span>
                                     </button>
                                     <button class="btn btn-secondary py-1 px-2 min-h-[30px] text-xs" type="button" id="openRangeModal" title="Generate banyak serial otomatis">
                                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/></svg></span>
@@ -58,7 +58,6 @@
                                 </div>
                             </div>
                             <div id="stockItemRows" class="space-y-2"></div>
-                            <div class="mt-2 text-[11px] text-[color:var(--muted)]">Satu baris bisa mewakili 1 atau banyak pcs (contoh: 1 kaleng kabel data isi 20 pcs dengan nomor seri yang sama).</div>
                         </div>
 
                         <div>
@@ -102,7 +101,7 @@
     <!-- Modal Scan Barcode Tambah Stok -->
     <div id="scanStockModal" class="modal-backdrop hidden">
         <div class="modal-card max-w-2xl">
-            <div class="modal-head flex items-start justify-between gap-3">
+            <div class="modal-head flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2.5">
                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold text-sm shadow-xs">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -110,10 +109,7 @@
                             <line x1="7" y1="12" x2="17" y2="12"/>
                         </svg>
                     </span>
-                    <div>
-                        <h2 class="font-bold text-base text-[color:var(--text)]">Scan Barcode Tambah Stok</h2>
-                        <p class="text-xs text-[color:var(--muted)]">Pilih produk, tentukan harga modal, lalu scan barcode barang fisik secara beruntun.</p>
-                    </div>
+                    <h2 class="font-bold text-base text-[color:var(--text)]">Scan Barcode Tambah Stok</h2>
                 </div>
                 <button type="button" class="btn btn-secondary close-scan-modal">
                     <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
@@ -126,7 +122,7 @@
                 <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div class="search-select relative">
-                            <label class="mb-1 block font-semibold text-xs text-slate-800">1. Pilih Produk Fisik <span class="text-red-500">*</span></label>
+                            <label class="mb-1 block font-semibold text-xs text-slate-800">Pilih Produk <span class="text-red-500">*</span></label>
                             <input class="field text-xs font-medium" type="text" id="scan_product_search" placeholder="Cari nama atau kode produk..." autocomplete="off">
                             <input type="hidden" id="scan_product_id">
                             <div id="scanProductDropdown" class="search-select-list hidden max-h-48 overflow-y-auto"></div>
@@ -156,14 +152,12 @@
 
                     <div class="grid gap-3 sm:grid-cols-2 pt-1">
                         <div>
-                            <label class="mb-1 block font-semibold text-xs text-slate-800">2. Harga Modal per pcs <span class="text-red-500">*</span></label>
+                            <label class="mb-1 block font-semibold text-xs text-slate-800">Harga Modal / pcs <span class="text-red-500">*</span></label>
                             <input class="field text-xs font-semibold" type="text" inputmode="numeric" data-number-mask id="scan_batch_cost_price" placeholder="Contoh: 15.000">
-                            <div class="mt-0.5 text-[10px] text-[color:var(--muted)]">Otomatis terisi harga modal terakhir, bisa diubah jika ada kenaikan/penurunan harga.</div>
                         </div>
                         <div>
                             <label class="mb-1 block font-semibold text-xs text-slate-800">Tanggal Kadaluarsa (Opsional)</label>
                             <input class="field text-xs" type="date" id="scan_batch_expiry_date">
-                            <div class="mt-0.5 text-[10px] text-[color:var(--muted)]">Khusus voucher fisik atau kartu perdana yang memiliki tanggal exp.</div>
                         </div>
                     </div>
                 </div>
@@ -172,20 +166,22 @@
                 <div class="rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 p-4 space-y-3 transition-all" id="scanInputZone">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
-                            <span class="relative flex h-3 w-3">
+                            <span class="relative flex h-2.5 w-2.5">
                                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                             </span>
-                            <span class="text-xs font-bold text-emerald-950">Scanner Siap (Tembak Barcode Fisik)</span>
+                            <span class="text-xs font-bold text-emerald-950">Scanner Siap</span>
                         </div>
-                        <button type="button" class="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1" id="toggleScanSound">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-                            <span id="soundLabel">Suara Beep: ON</span>
+                        <button type="button" class="inline-flex items-center justify-center h-7 w-7 rounded-lg border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50 transition-colors shadow-2xs" id="toggleScanSound" title="Suara Beep: ON" aria-label="Toggle Suara Beep">
+                            <span id="soundIconWrapper">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                            </span>
+                            <span id="soundLabel" class="sr-only">Suara Beep: ON</span>
                         </button>
                     </div>
 
                     <div class="relative">
-                        <input class="field text-sm font-mono tracking-wider py-2.5 px-3.5 border-emerald-500 focus:border-emerald-600 focus:ring-emerald-200" type="text" id="scan_barcode_input" placeholder="Arahkan scanner ke barcode atau ketik lalu tekan Enter..." autocomplete="off">
+                        <input class="field text-sm font-mono tracking-wider py-2.5 px-3.5 border-emerald-500 focus:border-emerald-600 focus:ring-emerald-200" type="text" id="scan_barcode_input" placeholder="Scan barcode / ketik serial number..." autocomplete="off">
                     </div>
 
                     <div id="scanStatusFeedback" class="text-xs hidden rounded-lg p-2 font-medium"></div>
@@ -195,13 +191,14 @@
                 <div class="space-y-2">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div class="text-xs font-bold text-slate-800 flex items-center gap-2">
-                            <span>Daftar Item Discan</span>
+                            <span>Item Discan</span>
                             <span class="badge bg-emerald-100 text-emerald-800 font-black text-xs px-2 py-0.5" id="scanCountBadge">0 Unit</span>
                         </div>
                         <div class="flex items-center gap-3 text-xs">
-                            <span class="text-slate-600">Total Nilai Modal: <strong id="scanTotalCostText" class="text-slate-900 font-bold">Rp 0</strong></span>
-                            <button type="button" class="text-[11px] font-medium text-rose-600 hover:text-rose-800" id="btnClearScanList">
-                                Bersihkan List
+                            <span class="text-slate-600">Total Modal: <strong id="scanTotalCostText" class="text-slate-900 font-bold">Rp 0</strong></span>
+                            <button type="button" class="inline-flex items-center gap-1 text-[11px] font-medium text-rose-600 hover:text-rose-800 p-1 rounded hover:bg-rose-50" id="btnClearScanList" title="Kosongkan daftar scan">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                <span>Reset</span>
                             </button>
                         </div>
                     </div>
@@ -220,7 +217,7 @@
                             <tbody id="scanTableBody">
                                 <tr id="scanEmptyRow">
                                     <td colspan="5" class="text-center py-6 text-slate-400">
-                                        Belum ada barang yang discan. Tembak barcode fisik untuk mulai menambah daftar.
+                                        Belum ada item discan.
                                     </td>
                                 </tr>
                             </tbody>
@@ -239,7 +236,7 @@
                         <button type="button" class="btn btn-secondary flex-1 py-2 close-scan-modal">Batal</button>
                         <button type="button" class="btn btn-primary flex-[2] py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs border-emerald-600" id="btnSubmitScannedStock">
                             <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span>
-                            <span id="btnSubmitScannedText">Simpan Stok ke Database (0 Unit)</span>
+                            <span id="btnSubmitScannedText">Simpan Stok (0 Unit)</span>
                         </button>
                     </div>
                 </div>
@@ -1223,7 +1220,7 @@
 
                 $('#scanCountBadge').text(`${totalUnits} Unit`);
                 $('#scanTotalCostText').text(money(totalCost));
-                $('#btnSubmitScannedText').text(`Simpan Stok ke Database (${totalUnits} Unit)`);
+                $('#btnSubmitScannedText').text(`Simpan Stok (${totalUnits} Unit)`);
             }
 
             function renderScanTable() {
@@ -1233,7 +1230,7 @@
                     $tbody.html(`
                         <tr id="scanEmptyRow">
                             <td colspan="5" class="text-center py-6 text-slate-400">
-                                Belum ada barang yang discan. Tembak barcode fisik untuk mulai menambah daftar.
+                                Belum ada item discan.
                             </td>
                         </tr>
                     `);
@@ -1332,9 +1329,31 @@
                 $('#scan_barcode_input').val('').focus();
             }
 
+            function updateScanSoundUi() {
+                if (scanSoundEnabled) {
+                    $('#toggleScanSound')
+                        .attr('title', 'Suara Beep: ON')
+                        .removeClass('border-slate-300 bg-slate-100 text-slate-400 hover:bg-slate-200')
+                        .addClass('border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50');
+                    $('#soundIconWrapper').html(`
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                    `);
+                    $('#soundLabel').text('Suara Beep: ON');
+                } else {
+                    $('#toggleScanSound')
+                        .attr('title', 'Suara Beep: OFF')
+                        .removeClass('border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50')
+                        .addClass('border-slate-300 bg-slate-100 text-slate-400 hover:bg-slate-200');
+                    $('#soundIconWrapper').html(`
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                    `);
+                    $('#soundLabel').text('Suara Beep: OFF');
+                }
+            }
+
             $('#toggleScanSound').on('click', function () {
                 scanSoundEnabled = !scanSoundEnabled;
-                $('#soundLabel').text(scanSoundEnabled ? 'Suara Beep: ON' : 'Suara Beep: OFF');
+                updateScanSoundUi();
                 showAlert(scanSoundEnabled ? 'Bunyi beep scan diaktifkan.' : 'Bunyi beep scan dimatikan.');
             });
 

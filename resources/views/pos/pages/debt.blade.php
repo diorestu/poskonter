@@ -16,18 +16,17 @@
                     </span>
                     <div>
                         <h1 class="text-base font-bold text-[color:var(--text)]">Buku Utang Pelanggan</h1>
-                        <p class="text-xs text-[color:var(--muted)]">Kelola bon utang, pantau grafik & progress pelunasan, serta catat pembayaran dengan cepat.</p>
                     </div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2">
                     <button type="button" class="btn btn-secondary text-xs py-1.5 px-3 font-semibold" id="btnOpenManualDebtModal">
                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
-                        <span>+ Catat Utang Manual</span>
+                        <span>+ Catat Utang</span>
                     </button>
                     <button type="button" class="btn btn-primary text-xs py-1.5 px-3 font-bold shadow-xs bg-emerald-600 hover:bg-emerald-700 border-emerald-600" id="btnOpenQuickPaymentModal">
                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/></svg></span>
-                        <span>⚡ Bayar / Pelunasan Utang</span>
+                        <span>⚡ Bayar Utang</span>
                     </button>
                 </div>
             </div>
@@ -38,25 +37,25 @@
             <div class="list-panel p-3.5 border-l-4 border-l-slate-600">
                 <div class="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wider">Total Piutang Toko</div>
                 <div class="text-lg font-black text-slate-800 mt-1" id="sumTotalDebt">Rp 0</div>
-                <div class="text-[10px] text-[color:var(--muted)] mt-0.5" id="sumTotalCount">0 total bon tercatat</div>
+                <div class="text-[10px] text-[color:var(--muted)] mt-0.5" id="sumTotalCount">0 bon</div>
             </div>
 
             <div class="list-panel p-3.5 border-l-4 border-l-emerald-500 bg-emerald-50/20">
                 <div class="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">Sudah Dilunasi</div>
                 <div class="text-lg font-black text-emerald-700 mt-1" id="sumTotalPaid">Rp 0</div>
-                <div class="text-[10px] text-emerald-600 font-medium mt-0.5" id="sumPaidCount">0 transaksi lunas</div>
+                <div class="text-[10px] text-emerald-600 font-medium mt-0.5" id="sumPaidCount">0 lunas</div>
             </div>
 
             <div class="list-panel p-3.5 border-l-4 border-l-rose-500 bg-rose-50/20">
                 <div class="text-[11px] font-semibold text-rose-800 uppercase tracking-wider">Sisa Belum Lunas</div>
                 <div class="text-lg font-black text-rose-700 mt-1" id="sumTotalRemaining">Rp 0</div>
-                <div class="text-[10px] text-rose-600 font-medium mt-0.5" id="sumUnpaidCount">0 transaksi belum lunas</div>
+                <div class="text-[10px] text-rose-600 font-medium mt-0.5" id="sumUnpaidCount">0 belum lunas</div>
             </div>
 
             <div class="list-panel p-3.5 border-l-4 border-l-blue-500 bg-blue-50/20">
                 <div class="text-[11px] font-semibold text-blue-800 uppercase tracking-wider">Penerimaan Hari Ini</div>
                 <div class="text-lg font-black text-blue-700 mt-1" id="sumTodayPayments">Rp 0</div>
-                <div class="text-[10px] text-blue-600 font-medium mt-0.5" id="sumTodayPaymentsCount">0 pelunasan hari ini</div>
+                <div class="text-[10px] text-blue-600 font-medium mt-0.5" id="sumTodayPaymentsCount">0 pembayaran</div>
             </div>
         </div>
 
@@ -482,16 +481,16 @@
                 const progress = Number(summary.overall_progress || 0);
 
                 $('#sumTotalDebt').text(money(totalDebt));
-                $('#sumTotalCount').text(`${summary.total_count || 0} total bon tercatat`);
+                $('#sumTotalCount').text(`${summary.total_count || 0} bon`);
 
                 $('#sumTotalPaid').text(money(totalPaid));
-                $('#sumPaidCount').text(`${summary.paid_count || 0} transaksi lunas`);
+                $('#sumPaidCount').text(`${summary.paid_count || 0} lunas`);
 
                 $('#sumTotalRemaining').text(money(totalRemaining));
-                $('#sumUnpaidCount').text(`${(summary.unpaid_count || 0) + (summary.partial_count || 0)} transaksi belum lunas`);
+                $('#sumUnpaidCount').text(`${(summary.unpaid_count || 0) + (summary.partial_count || 0)} belum lunas`);
 
                 $('#sumTodayPayments').text(money(summary.today_payments_amount || 0));
-                $('#sumTodayPaymentsCount').text(`${summary.today_payments_count || 0} pelunasan hari ini`);
+                $('#sumTodayPaymentsCount').text(`${summary.today_payments_count || 0} pembayaran`);
 
                 // Global Progress Bar
                 $('#overallProgressBar').css('width', `${progress}%`);

@@ -23,7 +23,6 @@
                         </span>
                         <div>
                             <h1 class="text-base font-bold text-[color:var(--text)]">Penjualan Kartu Perdana</h1>
-                            <p class="text-xs text-[color:var(--muted)]">Input manual nama operator, harga jual, dan harga beli (modal) kartu perdana.</p>
                         </div>
                     </div>
                 </div>
@@ -54,7 +53,6 @@
                 <div class="list-panel p-4 space-y-3">
                     <div>
                         <div class="text-xs font-bold text-[color:var(--text)] uppercase tracking-wider">Pilih Operator Cepat</div>
-                        <div class="text-[11px] text-[color:var(--muted)]">Klik salah satu operator untuk mengisi nama secara otomatis atau ketik manual di formulir kanan.</div>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="operatorChipsContainer">
                         <button type="button" class="operator-chip flex items-center gap-2 p-2 rounded-lg border border-rose-200 bg-rose-50/70 hover:bg-rose-100/80 text-rose-900 transition-all text-left text-xs font-semibold" data-operator="Telkomsel">
@@ -115,8 +113,7 @@
 
                     <!-- Panel 2: Riwayat Penjualan Perdana -->
                     <div id="tabContentHistory" class="hidden space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div class="text-xs text-[color:var(--muted)]">Daftar transaksi penjualan kartu perdana terbaru.</div>
+                        <div class="flex items-center justify-end">
                             <button type="button" class="btn btn-secondary py-1 px-2.5 text-xs" id="btnRefreshHistory">
                                 <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg></span>
                                 <span>Segarkan</span>
@@ -170,12 +167,12 @@
                 <!-- PANEL 1: Form Penjualan Kartu Perdana -->
                 <div id="panelPerdanaSale">
                     <form id="perdanaForm" class="list-panel p-4 space-y-3.5 shadow-sm">
-                        <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-2.5">
-                            <div>
-                                <div class="text-sm font-bold text-[color:var(--text)]">Form Input Penjualan Perdana</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">Pilih dari katalog kiri atau ketik manual.</div>
-                            </div>
-                            <button type="button" class="btn btn-secondary py-0.5 px-2 text-[10px]" id="btnClearSaleForm">Reset</button>
+                        <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-2">
+                            <div class="text-sm font-bold text-[color:var(--text)]">Form Penjualan Perdana</div>
+                            <button type="button" class="btn btn-secondary py-0.5 px-2 text-[10px] inline-flex items-center gap-1" id="btnClearSaleForm">
+                                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                <span>Reset</span>
+                            </button>
                         </div>
 
                         <!-- 1. Nama Operator / Produk -->
@@ -185,7 +182,6 @@
                                 <span id="selectedProductBadge" class="hidden text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Katalog</span>
                             </div>
                             <input class="field text-xs py-1.5" type="text" id="perdana_operator_name" placeholder="Contoh: Telkomsel 14GB / Axis Kuota 5GB" required autocomplete="off">
-                            <div class="mt-0.5 text-[10px] text-[color:var(--muted)]">Bisa nama operator saja atau beserta detail kuota/paket.</div>
                         </div>
 
                         <!-- 2. Harga Jual & Harga Beli (Modal) -->
@@ -257,7 +253,7 @@
                             <div class="flex items-center justify-between">
                                 <label class="text-xs font-medium text-[color:var(--text)]">Uang Diterima (Rp)</label>
                                 <div class="flex items-center gap-1">
-                                    <button type="button" class="btn btn-secondary py-0.5 px-2 text-[10px] quick-cash-btn" data-val="exact">Uang Pas</button>
+                                    <button type="button" class="btn btn-secondary py-0.5 px-2 text-[10px] quick-cash-btn" data-val="exact">Pas</button>
                                     <button type="button" class="btn btn-secondary py-0.5 px-2 text-[10px] quick-cash-btn" data-val="20000">20rb</button>
                                     <button type="button" class="btn btn-secondary py-0.5 px-2 text-[10px] quick-cash-btn" data-val="50000">50rb</button>
                                     <button type="button" class="btn btn-secondary py-0.5 px-2 text-[10px] quick-cash-btn" data-val="100000">100rb</button>
@@ -290,11 +286,8 @@
                 <!-- PANEL 2: Form Input / Tambah Produk Kartu Perdana (BARU) -->
                 <div id="panelPerdanaAddProduct" class="hidden">
                     <form id="perdanaInlineAddForm" class="list-panel p-4 space-y-3 shadow-sm">
-                        <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-2.5">
-                            <div>
-                                <div class="text-sm font-bold text-slate-800">Form Input Produk Kartu Perdana</div>
-                                <div class="text-[11px] text-[color:var(--muted)]">Input master produk kartu perdana baru ke katalog.</div>
-                            </div>
+                        <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-2">
+                            <div class="text-sm font-bold text-slate-800">Form Input Produk Perdana</div>
                             <button type="button" class="btn btn-secondary py-1 px-2.5 text-xs" id="btnCancelInlinePerdana">Batal</button>
                         </div>
 
