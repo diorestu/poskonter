@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Debt;
+use App\Models\DebtPayment;
 use App\Models\Product;
 use App\Models\Provider;
 use App\Models\StockMovement;
@@ -2524,6 +2526,240 @@ class PosTest extends TestCase
             'pulsa_sale_id' => $saleId,
             'status' => 'cancelled',
         ]);
+    }
+
+    public function test_cashier_and_admin_can_access_debts_page_and_dashboard(): void
+    {
+        $cashier = User::factory()->create(['role' => 'cashier']);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        // Cashier accesses debts page
+        $this->actingAs($cashier);
+        $pageResponse = $this->get('/utang');
+        $pageResponse->assertOk()
+            ->assertSee('Buku Utang')
+            ->assertSee('Tingkat Pengembalian Piutang Toko')
+            ->assertSee('Riwayat Pelunasan');
+
+        // Create a debt to verify dashboard calculations
+        $debt = Debt::create([
+            'reference_number' => 'DEBT-' . now()->format('YmdHis') . '-TEST',
+            'debt_date' => now(),
+            'customer_name' => 'Pak Joko',
+            'customer_phone' => '081299990000',
+            'amount' => 200000,
+            'paid_amount' => 50000,
+            'status' => 'partial',
+            'shift' => 'pagi',
+            'notes' => 'Beli barang warung',
+            'created_by' => $cashier->id,
+        ]);
+
+        DebtPayment::create([
+            'reference_number' => 'PAY-' . now()->format('YmdHis') . '-TEST',
+            'debt_id' => $debt->id,
+            'customer_name' => 'Pak Joko',
+            'amount' => 50000,
+            'payment_method' => 'cash',
+            'shift' => 'pagi',
+            'created_by' => $cashier->id,
+            'payment_date' => now(),
+            'notes' => 'Cicilan pertama',
+        ]);
+
+        // Cashier queries dashboard
+        $dashboardResponse = $this->getJson('/ajax/debts/dashboard');
+        $dashboardResponse->assertOk()
+            ->assertJsonStructure([
+                'summary' => [
+                    'total_debt',
+                    'total_paid',
+                    'total_remaining',
+                    'progress_percent',
+                    'count_total',
+                    'count_paid',
+                    'count_partial',
+                    'count_unpaid',
+                    'today_payments_amount',
+                ],
+                'debts',
+                'payments',
+            ]);
+
+        $this->assertEquals(200000, (float) $dashboardResponse->json('summary.total_debt'));
+        $this->assertEquals(50000, (float) $dashboardResponse->json('summary.total_paid'));
+        $this->assertEquals(150000, (float) $dashboardResponse->json('summary.total_remaining'));
+        $this->assertEquals(25.0, (float) $dashboardResponse->json('summary.progress_percent'));
+        $this->assertEquals(1, $dashboardResponse->json('summary.count_partial'));
+        $this->assertEquals(50000, (float) $dashboardResponse->json('summary.today_payments_amount'));
+
+        $debtItem = collect($dashboardResponse->json('debts'))->firstWhere('id', $debt->id);
+        $this->assertNotNull($debtItem);
+        $this->assertEquals(25.0, (float) $debtItem['progress_percent']);
+        $this->assertEquals(150000, (float) $debtItem['remaining_amount']);
+
+        // Admin also has full access
+        $this->actingAs($admin);
+        $this->get('/utang')->assertOk();
+        $this->getJson('/ajax/debts/dashboard')->assertOk();
+    }
+
+    public function test_debtor_search_and_streamlined_quick_payment(): void
+    {
+        $cashier = User::factory()->create(['role' => 'cashier']);
+        $this->actingAs($cashier);
+
+        // 1. Create debt
+        $createRes = $this->postJson('/ajax/debts', [
+            'customer_name' => 'Budi Santoso',
+            'customer_phone' => '081234567890',
+            'amount' => 100000,
+            'notes' => 'Utang perdana & pulsa',
+        ]);
+        $createRes->assertCreated();
+        $debtId = $createRes->json('debt.id');
+
+        // 2. Verify in unpaid debts (searchable dataset)
+        $unpaidRes = $this->getJson('/ajax/debts/unpaid');
+        $unpaidRes->assertOk();
+        $unpaidList = collect($unpaidRes->json());
+        $found = $unpaidList->firstWhere('id', $debtId);
+        $this->assertNotNull($found);
+        $this->assertEquals('Budi Santoso', $found['customer_name']);
+        $this->assertEquals('081234567890', $found['customer_phone']);
+        $this->assertEquals(100000, (float) $found['amount']);
+        $this->assertEquals(100000, (float) $found['remaining_amount']);
+        $this->assertEquals(0, (float) $found['progress_percent']);
+
+        // 3. Partial quick repayment (e.g., 40,000)
+        $pay1 = $this->postJson('/ajax/debts/payments', [
+            'debt_id' => $debtId,
+            'amount' => 40000,
+            'payment_method' => 'cash',
+            'notes' => 'Cicilan 1',
+        ]);
+        $pay1->assertCreated();
+
+        $this->assertDatabaseHas('debts', [
+            'id' => $debtId,
+            'paid_amount' => 40000,
+            'status' => 'partial',
+        ]);
+
+        // Unpaid list now reflects 40% progress and 60,000 remaining
+        $unpaidRes2 = $this->getJson('/ajax/debts/unpaid');
+        $found2 = collect($unpaidRes2->json())->firstWhere('id', $debtId);
+        $this->assertNotNull($found2);
+        $this->assertEquals(60000, (float) $found2['remaining_amount']);
+        $this->assertEquals(40.0, (float) $found2['progress_percent']);
+
+        // 4. Quick full repayment of remaining 60,000
+        $pay2 = $this->postJson('/ajax/debts/payments', [
+            'debt_id' => $debtId,
+            'amount' => 60000,
+            'payment_method' => 'cash',
+            'notes' => 'Pelunasan sisa',
+        ]);
+        $pay2->assertCreated();
+
+        $this->assertDatabaseHas('debts', [
+            'id' => $debtId,
+            'paid_amount' => 100000,
+            'status' => 'paid',
+        ]);
+
+        // Fully paid debt is removed from unpaid debts
+        $unpaidRes3 = $this->getJson('/ajax/debts/unpaid');
+        $this->assertNull(collect($unpaidRes3->json())->firstWhere('id', $debtId));
+
+        // In dashboard, it appears as 100% paid
+        $dashRes = $this->getJson('/ajax/debts/dashboard');
+        $debtInDash = collect($dashRes->json('debts'))->firstWhere('id', $debtId);
+        $this->assertNotNull($debtInDash);
+        $this->assertEquals('paid', $debtInDash['status']);
+        $this->assertEquals(100.0, (float) $debtInDash['progress_percent']);
+        $this->assertEquals(0, (float) $debtInDash['remaining_amount']);
+    }
+
+    public function test_barcode_scanner_modal_elements_and_batch_stock_addition(): void
+    {
+        $cashier = $this->signIn('cashier');
+
+        // 1. Check stock page has scan modal and buttons
+        $stockPage = $this->get('/stock');
+        $stockPage->assertOk()
+            ->assertSee('Scan Barcode Tambah Stok')
+            ->assertSee('scanStockModal')
+            ->assertSee('openScanStockModal')
+            ->assertSee('btn-open-scan-stock');
+
+        // 2. Create physical product
+        $product = Product::create([
+            'code' => 'VCR-TSM-10G',
+            'name' => 'Voucher Telkomsel 10GB',
+            'product_type' => 'voucher',
+            'category' => 'voucher',
+            'price' => 35000,
+            'cost_price' => 28000,
+            'stock' => 5,
+            'minimum_stock' => 2,
+            'unit' => 'pcs',
+            'status' => 'active',
+        ]);
+
+        // 3. Simulate stock-in payload sent from scanner popup
+        $scanResponse = $this->postJson("/ajax/products/{$product->id}/stock", [
+            'items' => [
+                [
+                    'serial_number' => '896200001001',
+                    'quantity' => 1,
+                    'cost_price' => 29000,
+                    'expiry_date' => now()->addMonths(6)->toDateString(),
+                ],
+                [
+                    'serial_number' => '896200001002',
+                    'quantity' => 1,
+                    'cost_price' => 29000,
+                    'expiry_date' => now()->addMonths(6)->toDateString(),
+                ],
+                [
+                    'serial_number' => '896200001003',
+                    'quantity' => 1,
+                    'cost_price' => 29000,
+                    'expiry_date' => now()->addMonths(6)->toDateString(),
+                ],
+            ],
+            'note' => 'Stok masuk via barcode scanner (3 pcs)',
+        ]);
+
+        $scanResponse->assertOk()
+            ->assertJsonPath('message', 'Stok berhasil ditambahkan.')
+            ->assertJsonPath('product.stock', 8);
+
+        // Verify stock movements recorded for each scanned serial
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'in',
+            'serial_number' => '896200001001',
+            'cost_price' => 29000,
+        ]);
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'in',
+            'serial_number' => '896200001002',
+            'cost_price' => 29000,
+        ]);
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $product->id,
+            'type' => 'in',
+            'serial_number' => '896200001003',
+            'cost_price' => 29000,
+        ]);
+
+        // Product stock is 5 + 3 = 8
+        $this->assertEquals(8, $product->fresh()->stock);
+        // Cost price is updated to latest (29000)
+        $this->assertEquals(29000, (float) $product->fresh()->cost_price);
     }
 }
 

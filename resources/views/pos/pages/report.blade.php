@@ -482,13 +482,14 @@
                                 <th data-sort="amount" class="text-right">Total Utang (Rp)</th>
                                 <th data-sort="paid_amount" class="text-right">Terbayar (Rp)</th>
                                 <th data-sort="remaining_amount" class="text-right">Sisa Utang (Rp)</th>
+                                <th width="140">Progress</th>
                                 <th data-sort="status" class="text-center">Status</th>
                                 <th>Catatan</th>
                                 <th class="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="debtTableBody">
-                            <tr><td colspan="12" class="text-center py-6 text-[color:var(--muted)]">Memuat data utang...</td></tr>
+                            <tr><td colspan="13" class="text-center py-6 text-[color:var(--muted)]">Memuat data utang...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -635,13 +636,31 @@
                 </button>
             </div>
             <form id="formRecordDebtPayment" class="modal-body p-4 space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold mb-1">Pilih Utang Belum Lunas</label>
-                    <select id="paymentDebtSelect" class="field text-xs w-full">
+                <div class="space-y-1 relative" id="reportDebtorComboboxWrapper">
+                    <label class="block text-xs font-semibold mb-1">Pilih Orang yang Berutang</label>
+                    <div class="relative">
+                        <input type="text" id="reportDebtSearchInput" class="field text-xs w-full pl-8 pr-7 py-1.5" placeholder="🔍 Ketik nama pelanggan / no telp / ref utang..." autocomplete="off">
+                        <button type="button" id="btnClearReportDebtorSelection" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs" title="Reset Pilihan">✕</button>
+                    </div>
+                    <select id="paymentDebtSelect" name="debt_id" class="hidden">
                         <option value="">-- Pembayaran Manual / Bebas --</option>
                     </select>
-                    <p class="text-[10px] text-[color:var(--muted)] mt-0.5">Memilih utang akan otomatis mengisi nama pelanggan dan mengurangi sisa utang terkait.</p>
+                    <!-- Dropdown List Hasil Pencarian -->
+                    <div id="reportDebtorSearchResults" class="hidden absolute left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white rounded-lg border border-slate-200 shadow-xl z-50 divide-y divide-slate-100 text-xs"></div>
                 </div>
+
+                <!-- Selected Debtor Card -->
+                <div id="reportSelectedDebtorCard" class="hidden p-2.5 rounded-lg border border-amber-300 bg-amber-50/70 text-xs space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-slate-900" id="reportCardCustomerName">-</span>
+                        <span class="badge bg-amber-100 text-amber-800 font-mono text-[10px] font-bold" id="reportCardDebtRef">-</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-slate-600">
+                        <span>Total: <strong id="reportCardTotalDebt">Rp 0</strong></span>
+                        <span>Sisa: <strong id="reportCardRemainingDebt" class="text-rose-700 font-bold">Rp 0</strong></span>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold mb-1">Nama Pelanggan <span class="text-rose-500">*</span></label>
@@ -670,9 +689,19 @@
                         </select>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold mb-1">Nominal Pembayaran (Rp) <span class="text-rose-500">*</span></label>
-                    <input type="number" name="amount" id="paymentAmount" class="field text-xs w-full font-bold text-emerald-700" min="1" step="any" placeholder="0" required>
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-semibold text-emerald-800">Nominal Pembayaran (Rp) <span class="text-rose-500">*</span></label>
+                        <div class="flex items-center gap-1">
+                            <button type="button" class="btn btn-secondary py-0.5 px-2 text-[10px] font-bold bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100" id="btnReportFillFull">⚡ Bayar Lunas</button>
+                            <button type="button" class="btn btn-secondary py-0.5 px-2 text-[10px]" id="btnReportFillHalf">50%</button>
+                        </div>
+                    </div>
+                    <input type="number" name="amount" id="paymentAmount" class="field text-xs w-full font-bold text-emerald-700 bg-emerald-50/20 border-emerald-300" min="1" step="any" placeholder="0" required>
+                    <div id="reportAfterPaymentBox" class="text-[11px] text-slate-500 flex justify-between pt-0.5">
+                        <span>Sisa utang setelah pembayaran:</span>
+                        <strong id="reportAfterPaymentText" class="text-slate-800 font-bold">Rp 0</strong>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold mb-1">Catatan</label>
@@ -680,7 +709,7 @@
                 </div>
                 <div class="pt-2 border-t border-[#edf2f7] flex justify-end gap-2">
                     <button type="button" class="btn btn-secondary text-xs" id="btnCancelDebtPayment">Batal</button>
-                    <button type="submit" class="btn btn-primary text-xs font-semibold" id="btnSubmitDebtPayment">Simpan Pembayaran</button>
+                    <button type="submit" class="btn btn-primary text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 border-emerald-600" id="btnSubmitDebtPayment">⚡ Konfirmasi Pembayaran</button>
                 </div>
             </form>
         </div>
@@ -1106,13 +1135,14 @@
                 debtTable.setQuery($('#debtSearch').val());
                 const meta = debtTable.pagedRows();
                 $('#debtTableBody').html(meta.rows.length ? meta.rows.map((d) => {
+                    const progress = d.amount > 0 ? Math.min(100, Math.round((Number(d.paid_amount) / Number(d.amount)) * 100)) : 0;
                     const statusBadge = d.status === 'paid' 
                         ? '<span class="badge badge-success uppercase text-[10px]">Lunas</span>'
                         : (d.status === 'partial' 
                             ? '<span class="badge badge-warning uppercase text-[10px]">Dicicil</span>'
                             : '<span class="badge badge-danger uppercase text-[10px]">Belum Lunas</span>');
                     const actionBtn = d.status !== 'paid'
-                        ? `<button type="button" class="btn btn-secondary text-[11px] py-0.5 px-2 btn-pay-debt font-semibold text-emerald-700 border-emerald-300 hover:bg-emerald-50" data-id="${d.id}" data-name="${d.customer_name}" data-remaining="${d.remaining_amount}">Bayar</button>`
+                        ? `<button type="button" class="btn btn-secondary text-[11px] py-0.5 px-2.5 btn-pay-debt font-bold text-emerald-700 border-emerald-300 hover:bg-emerald-50" data-id="${d.id}" data-name="${d.customer_name}" data-phone="${d.customer_phone || ''}" data-ref="${d.reference_number}" data-amount="${d.amount}" data-paid="${d.paid_amount}" data-remaining="${d.remaining_amount}">⚡ Bayar</button>`
                         : '<span class="text-[11px] text-emerald-600 font-semibold">-</span>';
 
                     return `
@@ -1126,12 +1156,23 @@
                             <td class="text-right font-bold text-slate-800">${money(d.amount)}</td>
                             <td class="text-right font-semibold text-emerald-700">${money(d.paid_amount)}</td>
                             <td class="text-right font-bold text-rose-600">${money(d.remaining_amount)}</td>
+                            <td>
+                                <div class="space-y-1">
+                                    <div class="flex items-center justify-between text-[10px]">
+                                        <span class="font-bold ${progress >= 100 ? 'text-emerald-700' : (progress > 0 ? 'text-amber-700' : 'text-slate-400')}">${progress}%</span>
+                                        <span class="text-slate-500">${money(d.paid_amount)} / ${money(d.amount)}</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                        <div class="h-1.5 rounded-full ${progress >= 100 ? 'bg-emerald-500' : (progress > 0 ? 'bg-amber-500' : 'bg-slate-300')} transition-all" style="width: ${progress}%"></div>
+                                    </div>
+                                </div>
+                            </td>
                             <td class="text-center">${statusBadge}</td>
                             <td class="text-[11px] text-[color:var(--muted)]">${d.notes || '-'}</td>
                             <td class="text-center">${actionBtn}</td>
                         </tr>
                     `;
-                }).join('') : '<tr><td colspan="12" class="text-center py-6 text-[color:var(--muted)]">Tidak ada catatan utang pada periode ini.</td></tr>');
+                }).join('') : '<tr><td colspan="13" class="text-center py-6 text-[color:var(--muted)]">Tidak ada catatan utang pada periode ini.</td></tr>');
                 debtTable.syncSortUi('#debtTable thead');
                 debtTable.renderFooter('#debtPagination', meta);
             }
@@ -1342,11 +1383,15 @@
             });
 
             // Modal: Record Debt Payment
+            let reportUnpaidDebtsList = [];
+            let reportSelectedDebt = null;
+
             function loadUnpaidDebts(selectedId) {
                 const $select = $('#paymentDebtSelect');
                 $select.html('<option value="">Memuat utang belum lunas...</option>');
                 $.get(urls.unpaidDebts)
                     .done(function (debts) {
+                        reportUnpaidDebtsList = debts || [];
                         let html = '<option value="">-- Pembayaran Manual / Bebas --</option>';
                         (debts || []).forEach(function (d) {
                             const remaining = Math.max(0, Number(d.amount) - Number(d.paid_amount));
@@ -1356,7 +1401,10 @@
                         $select.html(html);
 
                         if (selectedId) {
-                            $select.trigger('change');
+                            const found = reportUnpaidDebtsList.find(d => Number(d.id) === Number(selectedId));
+                            if (found) {
+                                selectReportDebtor(found);
+                            }
                         }
                     })
                     .fail(function () {
@@ -1364,8 +1412,124 @@
                     });
             }
 
+            function selectReportDebtor(d) {
+                reportSelectedDebt = d;
+                const remaining = Number(d.remaining_amount || (Number(d.amount) - Number(d.paid_amount)));
+
+                $('#paymentDebtSelect').val(d.id);
+                $('#paymentCustomerName').val(d.customer_name);
+                $('#reportDebtSearchInput').val(d.customer_name);
+                $('#btnClearReportDebtorSelection').removeClass('hidden');
+                $('#reportDebtorSearchResults').addClass('hidden');
+
+                $('#reportCardCustomerName').text(d.customer_name);
+                $('#reportCardDebtRef').text(d.reference_number);
+                $('#reportCardTotalDebt').text(money(d.amount));
+                $('#reportCardRemainingDebt').text(money(remaining));
+                $('#reportSelectedDebtorCard').removeClass('hidden');
+
+                $('#paymentAmount').val(remaining);
+                $('#btnReportFillFull').text(`⚡ Bayar Lunas (${money(remaining)})`).data('val', remaining);
+                $('#btnReportFillHalf').text(`50% (${money(Math.round(remaining / 2))})`).data('val', Math.round(remaining / 2));
+
+                updateReportAfterPaymentStatus();
+            }
+
+            function clearReportDebtorSelection() {
+                reportSelectedDebt = null;
+                $('#paymentDebtSelect').val('');
+                $('#reportDebtSearchInput').val('').focus();
+                $('#btnClearReportDebtorSelection').addClass('hidden');
+                $('#reportSelectedDebtorCard').addClass('hidden');
+                $('#btnReportFillFull').text('⚡ Bayar Lunas').data('val', 0);
+                $('#btnReportFillHalf').text('50%').data('val', 0);
+                updateReportAfterPaymentStatus();
+            }
+
+            function renderReportDebtorSearchResults(query) {
+                const q = (query || '').toLowerCase().trim();
+                const filtered = (reportUnpaidDebtsList || []).filter(d =>
+                    !q ||
+                    (d.customer_name || '').toLowerCase().includes(q) ||
+                    (d.customer_phone || '').toLowerCase().includes(q) ||
+                    (d.reference_number || '').toLowerCase().includes(q)
+                );
+
+                const $box = $('#reportDebtorSearchResults');
+                if (!filtered.length) {
+                    $box.html('<div class="p-2.5 text-center text-slate-400">Tidak ada utang cocok.</div>').removeClass('hidden');
+                    return;
+                }
+
+                $box.html(filtered.map(d => {
+                    const remaining = Number(d.remaining_amount || (Number(d.amount) - Number(d.paid_amount)));
+                    return `
+                        <div class="report-debtor-item p-2 hover:bg-emerald-50 cursor-pointer flex items-center justify-between" data-id="${d.id}">
+                            <div>
+                                <span class="font-bold text-slate-800">${d.customer_name}</span>
+                                <div class="text-[10px] text-slate-500 font-mono">${d.reference_number}</div>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-bold text-rose-700">${money(remaining)}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('')).removeClass('hidden');
+            }
+
+            function updateReportAfterPaymentStatus() {
+                const remaining = reportSelectedDebt ? Number(reportSelectedDebt.remaining_amount || (Number(reportSelectedDebt.amount) - Number(reportSelectedDebt.paid_amount))) : 0;
+                const amt = Number($('#paymentAmount').val() || 0);
+
+                if (!reportSelectedDebt) {
+                    $('#reportAfterPaymentBox').addClass('hidden');
+                    return;
+                }
+
+                $('#reportAfterPaymentBox').removeClass('hidden');
+                const diff = remaining - amt;
+                if (diff <= 0) {
+                    $('#reportAfterPaymentText').html('<span class="text-emerald-700 font-bold">Rp 0 (LUNAS ✅)</span>');
+                } else {
+                    $('#reportAfterPaymentText').html(`<span class="text-rose-700 font-bold">${money(diff)}</span> tersisa`);
+                }
+            }
+
+            $('#reportDebtSearchInput').on('input focus', function () {
+                if (!reportSelectedDebt) {
+                    renderReportDebtorSearchResults($(this).val());
+                }
+            });
+
+            $(document).on('click', '.report-debtor-item', function () {
+                const id = $(this).data('id');
+                const found = reportUnpaidDebtsList.find(d => Number(d.id) === Number(id));
+                if (found) {
+                    selectReportDebtor(found);
+                }
+            });
+
+            $('#btnClearReportDebtorSelection').on('click', clearReportDebtorSelection);
+
+            $(document).on('click', function (e) {
+                if (!$(e.target).closest('#reportDebtorComboboxWrapper').length) {
+                    $('#reportDebtorSearchResults').addClass('hidden');
+                }
+            });
+
+            $('#btnReportFillFull, #btnReportFillHalf').on('click', function () {
+                const val = $(this).data('val');
+                if (val > 0) {
+                    $('#paymentAmount').val(val);
+                    updateReportAfterPaymentStatus();
+                }
+            });
+
+            $('#paymentAmount').on('input', updateReportAfterPaymentStatus);
+
             $('#btnOpenRecordDebtPayment').on('click', function () {
                 $('#formRecordDebtPayment')[0].reset();
+                clearReportDebtorSelection();
                 const today = new Date().toISOString().split('T')[0];
                 const currentHour = new Date().getHours();
                 $('#paymentDate').val(today);
@@ -1375,22 +1539,13 @@
                 $('#modalRecordDebtPayment').removeClass('hidden');
             });
 
-            $('#paymentDebtSelect').on('change', function () {
-                const $opt = $(this).find(':selected');
-                const name = $opt.data('name');
-                const remaining = $opt.data('remaining');
-                if (name) {
-                    $('#paymentCustomerName').val(name);
-                }
-                if (remaining !== undefined && remaining > 0) {
-                    $('#paymentAmount').val(remaining);
-                }
-            });
-
             $(document).on('click', '.btn-pay-debt', function () {
                 const id = $(this).data('id');
                 const name = $(this).data('name');
                 const remaining = $(this).data('remaining');
+                const amount = $(this).data('amount');
+                const paid = $(this).data('paid');
+                const ref = $(this).data('ref');
 
                 $('#formRecordDebtPayment')[0].reset();
                 const today = new Date().toISOString().split('T')[0];
@@ -1398,8 +1553,7 @@
                 $('#paymentDate').val(today);
                 $('#paymentShift').val(currentHour >= 14 ? 'sore' : 'pagi');
                 $('#paymentMethod').val('cash');
-                $('#paymentCustomerName').val(name);
-                $('#paymentAmount').val(remaining);
+
                 loadUnpaidDebts(id);
                 $('#modalRecordDebtPayment').removeClass('hidden');
             });
@@ -1414,6 +1568,9 @@
                 $.post(urls.debtPaymentsStore, $(this).serialize())
                     .done(function (res) {
                         $('#modalRecordDebtPayment').addClass('hidden');
+                        showAlert(res.message || 'Pembayaran utang berhasil dicatat.', 'success');
+                        loadReportData();
+                    })
                         showAlert(res.message || 'Pembayaran utang berhasil dicatat.', 'success');
                         loadReportData();
                     })

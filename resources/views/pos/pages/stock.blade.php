@@ -38,6 +38,15 @@
                             <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                                 <label class="block font-medium">Detail Item Masuk</label>
                                 <div class="flex items-center gap-1.5">
+                                    <button class="btn btn-primary py-1 px-2.5 min-h-[30px] text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs" type="button" id="openScanStockModal" title="Scan barcode fisik beruntun dengan scanner">
+                                        <span class="btn-icon">
+                                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                                                <line x1="7" y1="12" x2="17" y2="12"/>
+                                            </svg>
+                                        </span>
+                                        <span>📷 Scan Barcode</span>
+                                    </button>
                                     <button class="btn btn-secondary py-1 px-2 min-h-[30px] text-xs" type="button" id="openRangeModal" title="Generate banyak serial otomatis">
                                         <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/></svg></span>
                                         <span>+ Range SN</span>
@@ -89,6 +98,154 @@
             </div>
         </div>
     </section>
+
+    <!-- Modal Scan Barcode Tambah Stok -->
+    <div id="scanStockModal" class="modal-backdrop hidden">
+        <div class="modal-card max-w-2xl">
+            <div class="modal-head flex items-start justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold text-sm shadow-xs">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                            <line x1="7" y1="12" x2="17" y2="12"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <h2 class="font-bold text-base text-[color:var(--text)]">Scan Barcode Tambah Stok</h2>
+                        <p class="text-xs text-[color:var(--muted)]">Pilih produk, tentukan harga modal, lalu scan barcode barang fisik secara beruntun.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary close-scan-modal">
+                    <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></span>
+                    <span>Tutup</span>
+                </button>
+            </div>
+
+            <div class="modal-body space-y-4 p-4">
+                <!-- 1. Pemilihan Produk & Pengaturan Batch -->
+                <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="search-select relative">
+                            <label class="mb-1 block font-semibold text-xs text-slate-800">1. Pilih Produk Fisik <span class="text-red-500">*</span></label>
+                            <input class="field text-xs font-medium" type="text" id="scan_product_search" placeholder="Cari nama atau kode produk..." autocomplete="off">
+                            <input type="hidden" id="scan_product_id">
+                            <div id="scanProductDropdown" class="search-select-list hidden max-h-48 overflow-y-auto"></div>
+                        </div>
+
+                        <div>
+                            <label class="mb-1 block font-semibold text-xs text-slate-800">Mode Scanner</label>
+                            <div class="grid grid-cols-2 gap-1.5 p-1 bg-white rounded-lg border border-slate-200 text-xs">
+                                <button type="button" class="scan-mode-btn active py-1 px-2 rounded-md font-semibold text-center transition-all bg-emerald-50 text-emerald-700 border border-emerald-300" data-mode="sn">
+                                    Voucher / Serial Unik
+                                </button>
+                                <button type="button" class="scan-mode-btn py-1 px-2 rounded-md font-semibold text-center transition-all text-slate-600 hover:text-slate-900 border border-transparent" data-mode="qty">
+                                    SKU / Tambah Qty
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Info Produk Terpilih & Detail Batch -->
+                    <div id="scanProductSelectedInfo" class="hidden flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/80 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="badge badge-info font-bold" id="scanProductBadge">KODE - NAMA</span>
+                            <span class="text-slate-600">Stok Saat Ini: <strong id="scanCurrentStockText" class="text-slate-900">0 pcs</strong></span>
+                        </div>
+                        <div class="text-slate-500 text-[11px]">Harga Jual: <strong id="scanProductPriceText" class="text-emerald-700">Rp 0</strong></div>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2 pt-1">
+                        <div>
+                            <label class="mb-1 block font-semibold text-xs text-slate-800">2. Harga Modal per pcs <span class="text-red-500">*</span></label>
+                            <input class="field text-xs font-semibold" type="text" inputmode="numeric" data-number-mask id="scan_batch_cost_price" placeholder="Contoh: 15.000">
+                            <div class="mt-0.5 text-[10px] text-[color:var(--muted)]">Otomatis terisi harga modal terakhir, bisa diubah jika ada kenaikan/penurunan harga.</div>
+                        </div>
+                        <div>
+                            <label class="mb-1 block font-semibold text-xs text-slate-800">Tanggal Kadaluarsa (Opsional)</label>
+                            <input class="field text-xs" type="date" id="scan_batch_expiry_date">
+                            <div class="mt-0.5 text-[10px] text-[color:var(--muted)]">Khusus voucher fisik atau kartu perdana yang memiliki tanggal exp.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Interactive Scanner Input Area -->
+                <div class="rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 p-4 space-y-3 transition-all" id="scanInputZone">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-3 w-3">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                            </span>
+                            <span class="text-xs font-bold text-emerald-950">Scanner Siap (Tembak Barcode Fisik)</span>
+                        </div>
+                        <button type="button" class="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1" id="toggleScanSound">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                            <span id="soundLabel">Suara Beep: ON</span>
+                        </button>
+                    </div>
+
+                    <div class="relative">
+                        <input class="field text-sm font-mono tracking-wider py-2.5 px-3.5 border-emerald-500 focus:border-emerald-600 focus:ring-emerald-200" type="text" id="scan_barcode_input" placeholder="Arahkan scanner ke barcode atau ketik lalu tekan Enter..." autocomplete="off">
+                    </div>
+
+                    <div id="scanStatusFeedback" class="text-xs hidden rounded-lg p-2 font-medium"></div>
+                </div>
+
+                <!-- 3. Real-Time Scanned Items Table -->
+                <div class="space-y-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                            <span>Daftar Item Discan</span>
+                            <span class="badge bg-emerald-100 text-emerald-800 font-black text-xs px-2 py-0.5" id="scanCountBadge">0 Unit</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs">
+                            <span class="text-slate-600">Total Nilai Modal: <strong id="scanTotalCostText" class="text-slate-900 font-bold">Rp 0</strong></span>
+                            <button type="button" class="text-[11px] font-medium text-rose-600 hover:text-rose-800" id="btnClearScanList">
+                                Bersihkan List
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-inner">
+                        <table class="table-grid min-w-full text-xs">
+                            <thead class="bg-slate-50 sticky top-0 text-left">
+                                <tr>
+                                    <th class="w-10 text-center">#</th>
+                                    <th>Barcode / Serial Number</th>
+                                    <th class="w-20 text-center">Qty</th>
+                                    <th class="w-24 text-right">Modal / pcs</th>
+                                    <th class="w-14 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scanTableBody">
+                                <tr id="scanEmptyRow">
+                                    <td colspan="5" class="text-center py-6 text-slate-400">
+                                        Belum ada barang yang discan. Tembak barcode fisik untuk mulai menambah daftar.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 4. Catatan & Tombol Simpan -->
+                <div class="pt-2 border-t border-slate-200 space-y-3">
+                    <div>
+                        <label class="mb-1 block font-medium text-xs">Catatan Stok Masuk (Opsional)</label>
+                        <input class="field text-xs" type="text" id="scan_stock_note" placeholder="Contoh: Stok masuk dari supplier / faktur #1234">
+                    </div>
+
+                    <div class="flex gap-2.5">
+                        <button type="button" class="btn btn-secondary flex-1 py-2 close-scan-modal">Batal</button>
+                        <button type="button" class="btn btn-primary flex-[2] py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs border-emerald-600" id="btnSubmitScannedStock">
+                            <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span>
+                            <span id="btnSubmitScannedText">Simpan Stok ke Database (0 Unit)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal Generate Serial Number Range -->
     <div id="serialRangeModal" class="modal-backdrop hidden">
@@ -434,6 +591,15 @@
                         <td><span class="badge ${Number(product.stock) <= Number(product.minimum_stock) ? 'badge-warning' : 'badge-ok'}">${product.stock} ${product.unit}</span></td>
                         <td class="text-right whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-1">
+                                <button class="btn btn-secondary py-1 px-2 text-xs btn-open-scan-stock text-emerald-700 hover:text-emerald-800" type="button" data-id="${product.id}" title="Scan Barcode Masuk">
+                                    <span class="btn-icon">
+                                        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                                            <line x1="7" y1="12" x2="17" y2="12"/>
+                                        </svg>
+                                    </span>
+                                    <span>Scan</span>
+                                </button>
                                 <button class="btn btn-secondary py-1 px-2 text-xs btn-open-adjust" type="button" data-id="${product.id}" title="Edit / Adjust Stok">
                                     <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span>
                                     <span>Adjust</span>
@@ -923,6 +1089,414 @@
                 }).fail((xhr) => {
                     showAlert(xhr.responseJSON?.message || 'Gagal memperbarui serial number.', 'error');
                 });
+            });
+
+            // ==========================================
+            // --- Scan Barcode Stock Modal Handlers ---
+            // ==========================================
+            let scanSoundEnabled = true;
+            const scanState = {
+                productId: null,
+                product: null,
+                mode: 'sn', // 'sn' or 'qty'
+                items: [], // [{ barcode, quantity, cost_price, expiry_date, scanned_at }]
+            };
+
+            function playScanAudio(type = 'success') {
+                if (!scanSoundEnabled) return;
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (type === 'success') {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(1760, ctx.currentTime);
+                        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start();
+                        osc.stop(ctx.currentTime + 0.08);
+                    } else if (type === 'duplicate') {
+                        const now = ctx.currentTime;
+                        [0, 0.09].forEach((delay) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'sawtooth';
+                            osc.frequency.setValueAtTime(360, now + delay);
+                            gain.gain.setValueAtTime(0.15, now + delay);
+                            gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.07);
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.start(now + delay);
+                            osc.stop(now + delay + 0.07);
+                        });
+                    }
+                } catch (e) {
+                    // Audio context ignored if not supported
+                }
+            }
+
+            function resetScanState() {
+                scanState.productId = null;
+                scanState.product = null;
+                scanState.mode = 'sn';
+                scanState.items = [];
+
+                $('#scan_product_id').val('');
+                $('#scan_product_search').val('');
+                $('#scanProductDropdown').addClass('hidden').empty();
+                $('#scanProductSelectedInfo').addClass('hidden');
+                $('#scan_batch_cost_price').val('');
+                $('#scan_batch_expiry_date').val('');
+                $('#scan_barcode_input').val('');
+                $('#scan_stock_note').val('');
+                $('#scanStatusFeedback').addClass('hidden').removeClass('bg-emerald-100 text-emerald-900 border-emerald-300 bg-amber-100 text-amber-900 border-amber-300 bg-rose-100 text-rose-900 border-rose-300 border').empty();
+
+                $('.scan-mode-btn')
+                    .removeClass('bg-emerald-50 text-emerald-700 border-emerald-300 active')
+                    .addClass('text-slate-600 border-transparent');
+                $('.scan-mode-btn[data-mode="sn"]')
+                    .addClass('bg-emerald-50 text-emerald-700 border-emerald-300 active');
+
+                renderScanTable();
+            }
+
+            function setScanProduct(product) {
+                if (!product) return;
+                scanState.productId = product.id;
+                scanState.product = product;
+
+                $('#scan_product_id').val(product.id);
+                $('#scan_product_search').val(`${product.code} - ${product.name}`);
+                $('#scanProductDropdown').addClass('hidden');
+
+                $('#scanProductBadge').text(`${product.code} - ${product.name} (${product.variant || '-'})`);
+                $('#scanCurrentStockText').text(`${product.stock} ${product.unit}`);
+                $('#scanProductPriceText').text(money(product.price));
+                $('#scanProductSelectedInfo').removeClass('hidden');
+
+                if (Number(product.cost_price || 0) > 0) {
+                    $('#scan_batch_cost_price').val(formatNumber(product.cost_price));
+                }
+
+                updateScanSummary();
+            }
+
+            function renderScanProductDropdown() {
+                const query = ($('#scan_product_search').val() || '').toLowerCase();
+                const filtered = regularProducts()
+                    .filter((p) => !query || p.name.toLowerCase().includes(query) || p.code.toLowerCase().includes(query))
+                    .slice(0, 10);
+
+                $('#scanProductDropdown').html(filtered.length ? filtered.map((p) => `
+                    <button type="button" class="search-select-item scan-product-option text-left w-full px-3 py-2 hover:bg-slate-100 transition-all border-b border-slate-100" data-id="${p.id}">
+                        <div class="font-semibold text-xs text-slate-800">${p.code} - ${p.name}</div>
+                        <div class="text-[11px] text-[color:var(--muted)]">Stok: ${p.stock} ${p.unit} · Modal: ${p.cost_price > 0 ? money(p.cost_price) : '-'} · Jual: ${money(p.price)}</div>
+                    </button>
+                `).join('') : '<div class="px-3 py-3 text-xs text-slate-400">Produk fisik tidak ditemukan.</div>').removeClass('hidden');
+            }
+
+            function showScanStatus(msg, type = 'success') {
+                const $el = $('#scanStatusFeedback');
+                $el.removeClass('hidden bg-emerald-100 text-emerald-900 border-emerald-300 bg-amber-100 text-amber-900 border-amber-300 bg-rose-100 text-rose-900 border-rose-300 border');
+                if (type === 'success') {
+                    $el.addClass('bg-emerald-100 text-emerald-900 border border-emerald-300');
+                } else if (type === 'warning') {
+                    $el.addClass('bg-amber-100 text-amber-900 border border-amber-300');
+                } else {
+                    $el.addClass('bg-rose-100 text-rose-900 border border-rose-300');
+                }
+                $el.html(msg);
+            }
+
+            function flashScanInput(type = 'success') {
+                const $input = $('#scan_barcode_input');
+                const borderClass = type === 'success' ? 'ring-2 ring-emerald-400 bg-emerald-50/50' : 'ring-2 ring-amber-400 bg-amber-50/50';
+                $input.addClass(borderClass);
+                window.setTimeout(() => $input.removeClass(borderClass), 350);
+            }
+
+            function updateScanSummary() {
+                const totalUnits = scanState.items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
+                const totalCost = scanState.items.reduce((sum, item) => sum + (Number(item.quantity || 1) * Number(item.cost_price || 0)), 0);
+
+                $('#scanCountBadge').text(`${totalUnits} Unit`);
+                $('#scanTotalCostText').text(money(totalCost));
+                $('#btnSubmitScannedText').text(`Simpan Stok ke Database (${totalUnits} Unit)`);
+            }
+
+            function renderScanTable() {
+                updateScanSummary();
+                const $tbody = $('#scanTableBody');
+                if (!scanState.items.length) {
+                    $tbody.html(`
+                        <tr id="scanEmptyRow">
+                            <td colspan="5" class="text-center py-6 text-slate-400">
+                                Belum ada barang yang discan. Tembak barcode fisik untuk mulai menambah daftar.
+                            </td>
+                        </tr>
+                    `);
+                    return;
+                }
+
+                $tbody.html(scanState.items.map((item, idx) => `
+                    <tr class="hover:bg-slate-50 border-b border-slate-100 transition-all">
+                        <td class="text-center font-mono text-[11px] text-slate-500">${scanState.items.length - idx}</td>
+                        <td>
+                            <div class="font-mono font-bold text-xs text-slate-900">${item.barcode}</div>
+                            <div class="text-[10px] text-slate-400">Discan: ${item.scanned_at} ${item.expiry_date ? '· Exp: ' + item.expiry_date : ''}</div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-slate-100 text-slate-800 font-bold px-2 py-0.5 text-xs">${item.quantity} pcs</span>
+                        </td>
+                        <td class="text-right font-medium text-slate-700">
+                            ${money(item.cost_price)}
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn-remove-scan-item text-rose-500 hover:text-rose-700 p-1" data-index="${idx}" title="Hapus item ini">
+                                <svg class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                        </td>
+                    </tr>
+                `).join(''));
+            }
+
+            function handleIncomingBarcode(rawCode) {
+                const code = (rawCode || '').trim();
+                if (!code) return;
+
+                if (!scanState.productId) {
+                    showScanStatus('⚠️ Pilih produk terlebih dahulu di atas sebelum memindai barcode!', 'warning');
+                    playScanAudio('duplicate');
+                    $('#scan_product_search').focus();
+                    return;
+                }
+
+                const costPrice = maskedNumberValue('#scan_batch_cost_price');
+                if (costPrice <= 0) {
+                    showScanStatus('⚠️ Isi Harga Modal per pcs terlebih dahulu sebelum men-scan barang!', 'warning');
+                    playScanAudio('duplicate');
+                    $('#scan_batch_cost_price').focus();
+                    return;
+                }
+
+                const expiryDate = $('#scan_batch_expiry_date').val() || null;
+                const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                if (scanState.mode === 'sn') {
+                    // Cek duplikasi di sesi scan ini
+                    const duplicate = scanState.items.find((item) => item.barcode === code);
+                    if (duplicate) {
+                        showScanStatus(`⚠️ Barcode / SN "${code}" sudah discan sebelumnya!`, 'warning');
+                        playScanAudio('duplicate');
+                        flashScanInput('warning');
+                        $('#scan_barcode_input').val('').focus();
+                        return;
+                    }
+
+                    scanState.items.unshift({
+                        barcode: code,
+                        quantity: 1,
+                        cost_price: costPrice,
+                        expiry_date: expiryDate,
+                        scanned_at: nowTime,
+                    });
+                    playScanAudio('success');
+                    showScanStatus(`✓ [${nowTime}] Barcode SN "${code}" berhasil discan!`, 'success');
+                    flashScanInput('success');
+                } else {
+                    // Mode Qty: jika barcode sama discan lagi, tambah qty
+                    const existing = scanState.items.find((item) => item.barcode === code);
+                    if (existing) {
+                        existing.quantity += 1;
+                        existing.scanned_at = nowTime;
+                        playScanAudio('success');
+                        showScanStatus(`✓ [${nowTime}] Qty "${code}" bertambah jadi ${existing.quantity} pcs!`, 'success');
+                        flashScanInput('success');
+                    } else {
+                        scanState.items.unshift({
+                            barcode: code,
+                            quantity: 1,
+                            cost_price: costPrice,
+                            expiry_date: expiryDate,
+                            scanned_at: nowTime,
+                        });
+                        playScanAudio('success');
+                        showScanStatus(`✓ [${nowTime}] Barcode "${code}" berhasil discan (1 pcs)!`, 'success');
+                        flashScanInput('success');
+                    }
+                }
+
+                renderScanTable();
+                $('#scan_barcode_input').val('').focus();
+            }
+
+            $('#toggleScanSound').on('click', function () {
+                scanSoundEnabled = !scanSoundEnabled;
+                $('#soundLabel').text(scanSoundEnabled ? 'Suara Beep: ON' : 'Suara Beep: OFF');
+                showAlert(scanSoundEnabled ? 'Bunyi beep scan diaktifkan.' : 'Bunyi beep scan dimatikan.');
+            });
+
+            $('.scan-mode-btn').on('click', function () {
+                const mode = $(this).data('mode');
+                scanState.mode = mode;
+                $('.scan-mode-btn')
+                    .removeClass('bg-emerald-50 text-emerald-700 border-emerald-300 active')
+                    .addClass('text-slate-600 border-transparent');
+                $(this)
+                    .addClass('bg-emerald-50 text-emerald-700 border-emerald-300 active');
+                $('#scan_barcode_input').focus();
+            });
+
+            $('#scan_product_search').on('focus input', function () {
+                renderScanProductDropdown();
+            });
+
+            $(document).on('click', '.scan-product-option', function () {
+                const productId = Number($(this).data('id'));
+                const product = state.products.find((p) => Number(p.id) === productId);
+                if (product) {
+                    setScanProduct(product);
+                    window.setTimeout(() => {
+                        if (!maskedNumberValue('#scan_batch_cost_price')) {
+                            $('#scan_batch_cost_price').focus();
+                        } else {
+                            $('#scan_barcode_input').focus();
+                        }
+                    }, 50);
+                }
+            });
+
+            $(document).on('click', function (e) {
+                if (!$(e.target).closest('#scanStockModal .search-select').length) {
+                    $('#scanProductDropdown').addClass('hidden');
+                }
+            });
+
+            $('#scan_barcode_input').on('keydown', function (e) {
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    e.preventDefault();
+                    handleIncomingBarcode($(this).val());
+                }
+            });
+
+            $(document).on('click', '.btn-remove-scan-item', function () {
+                const idx = Number($(this).data('index'));
+                if (!isNaN(idx) && scanState.items[idx]) {
+                    scanState.items.splice(idx, 1);
+                    renderScanTable();
+                    $('#scan_barcode_input').focus();
+                }
+            });
+
+            $('#btnClearScanList').on('click', function () {
+                if (!scanState.items.length) return;
+                if (confirm('Bersihkan seluruh daftar hasil scan pada sesi ini?')) {
+                    scanState.items = [];
+                    renderScanTable();
+                    $('#scanStatusFeedback').addClass('hidden').empty();
+                    $('#scan_barcode_input').focus();
+                }
+            });
+
+            $('#openScanStockModal').on('click', function () {
+                resetScanState();
+                const curProdId = Number($('#stock_product_id').val());
+                if (curProdId) {
+                    const prod = state.products.find((p) => Number(p.id) === curProdId);
+                    if (prod) {
+                        setScanProduct(prod);
+                    }
+                }
+                $('#scanStockModal').removeClass('hidden');
+                window.setTimeout(() => {
+                    if (!scanState.productId) {
+                        $('#scan_product_search').focus();
+                    } else if (!maskedNumberValue('#scan_batch_cost_price')) {
+                        $('#scan_batch_cost_price').focus();
+                    } else {
+                        $('#scan_barcode_input').focus();
+                    }
+                }, 80);
+            });
+
+            $(document).on('click', '.btn-open-scan-stock', function () {
+                const productId = Number($(this).data('id'));
+                const product = state.products.find((p) => Number(p.id) === productId);
+                if (!product) return;
+
+                resetScanState();
+                setScanProduct(product);
+                $('#scanStockModal').removeClass('hidden');
+                window.setTimeout(() => {
+                    if (!maskedNumberValue('#scan_batch_cost_price')) {
+                        $('#scan_batch_cost_price').focus().select();
+                    } else {
+                        $('#scan_barcode_input').focus();
+                    }
+                }, 80);
+            });
+
+            $(document).on('click', '.close-scan-modal', function () {
+                if (scanState.items.length > 0) {
+                    if (!confirm(`Ada ${scanState.items.length} item hasil scan yang belum disimpan. Yakin ingin menutup?`)) {
+                        return;
+                    }
+                }
+                $('#scanStockModal').addClass('hidden');
+                resetScanState();
+            });
+
+            $('#btnSubmitScannedStock').on('click', function () {
+                if (!scanState.productId) {
+                    showAlert('Pilih produk terlebih dahulu.', 'error');
+                    $('#scan_product_search').focus();
+                    return;
+                }
+                if (!scanState.items.length) {
+                    showAlert('Belum ada item yang discan. Tembak barcode barang terlebih dahulu.', 'error');
+                    $('#scan_barcode_input').focus();
+                    return;
+                }
+
+                const costPrice = maskedNumberValue('#scan_batch_cost_price');
+                if (costPrice <= 0) {
+                    showAlert('Harga modal wajib diisi.', 'error');
+                    $('#scan_batch_cost_price').focus();
+                    return;
+                }
+
+                const totalUnits = scanState.items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
+                const note = ($('#scan_stock_note').val() || '').trim() || `Stok masuk via barcode scanner (${totalUnits} pcs)`;
+
+                const payload = {
+                    items: scanState.items.map((item) => ({
+                        serial_number: item.barcode,
+                        quantity: item.quantity,
+                        cost_price: item.cost_price || costPrice,
+                        expiry_date: item.expiry_date || null,
+                    })),
+                    note: note,
+                };
+
+                const $btn = $(this);
+                $btn.prop('disabled', true).text('Menyimpan ke database...');
+
+                $.post(stockUrl(scanState.productId), payload)
+                    .done((res) => {
+                        showAlert(res.message || `✓ Sukses! ${totalUnits} unit stok berhasil ditambahkan ke database.`);
+                        $('#scanStockModal').addClass('hidden');
+                        resetScanState();
+                        loadData();
+                    })
+                    .fail((xhr) => {
+                        showAlert(xhr.responseJSON?.message || 'Gagal menyimpan stok masuk.', 'error');
+                    })
+                    .always(() => {
+                        $btn.prop('disabled', false);
+                        updateScanSummary();
+                    });
             });
 
             // --- Expiring Stock Modal Handlers ---

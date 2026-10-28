@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/voucher-pulsa', [PulsaController::class, 'voucherIndex'])->name('voucher.index');
         Route::get('/kartu-perdana', [PulsaController::class, 'perdanaIndex'])->name('perdana.index');
         Route::get('/riwayat-penjualan', [PulsaController::class, 'history'])->name('sales-history.index');
+        Route::get('/utang', [PosController::class, 'debtIndex'])->name('debts.index');
 
         Route::prefix('ajax')->name('ajax.')->group(function (): void {
             Route::get('/dashboard', [PosController::class, 'dashboard'])->name('dashboard');
@@ -52,6 +53,7 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/debts', [PosController::class, 'storeDebt'])->name('debts.store');
             Route::post('/debts/payments', [PosController::class, 'storeDebtPayment'])->name('debts.payments.store');
             Route::get('/debts/unpaid', [PosController::class, 'unpaidDebts'])->name('debts.unpaid');
+            Route::get('/debts/dashboard', [PosController::class, 'debtDashboard'])->name('debts.dashboard');
         });
     });
 

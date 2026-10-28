@@ -1860,7 +1860,7 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'debt_id' => ['nullable', 'integer', 'exists:debts,id'],
-            'customer_name' => ['required', 'string', 'max:120'],
+            'customer_name' => ['required_without:debt_id', 'nullable', 'string', 'max:120'],
             'amount' => ['required', 'numeric', 'min:1'],
             'payment_method' => ['required', 'string', 'in:cash,qris,transfer,debit'],
             'shift' => ['nullable', 'string', 'in:pagi,sore'],
@@ -1875,7 +1875,7 @@ class PosController extends Controller
                 'reference_number' => 'PAY-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
                 'payment_date' => $validated['payment_date'] ?? now(),
                 'debt_id' => $debt?->id,
-                'customer_name' => $debt?->customer_name ?: $validated['customer_name'],
+                'customer_name' => $debt?->customer_name ?: ($validated['customer_name'] ?? 'Pelanggan Umum'),
                 'amount' => $validated['amount'],
                 'payment_method' => $validated['payment_method'],
                 'shift' => $validated['shift'] ?? 'pagi',
@@ -1899,12 +1899,131 @@ class PosController extends Controller
         ], 201);
     }
 
+    public function debtIndex(): View
+    {
+        return view('pos.pages.debt');
+    }
+
+    public function debtDashboard(Request $request): JsonResponse
+    {
+        $query = Debt::query();
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        $shift = $request->query('shift');
+        $status = $request->query('status');
+
+        if ($startDate) {
+            $query->whereDate('debt_date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->whereDate('debt_date', '<=', $endDate);
+        }
+        if ($shift && in_array($shift, ['pagi', 'sore'], true)) {
+            $query->where('shift', $shift);
+        }
+        if ($status && in_array($status, ['unpaid', 'partial', 'paid', 'cancelled'], true)) {
+            $query->where('status', $status);
+        }
+
+        $allDebts = $query->latest('debt_date')->latest('id')->get();
+
+        $validDebts = $allDebts->where('status', '!=', 'cancelled');
+        $totalDebt = (float) $validDebts->sum('amount');
+        $totalPaid = (float) $validDebts->sum('paid_amount');
+        $totalRemaining = (float) max(0, $totalDebt - $totalPaid);
+        $overallProgress = $totalDebt > 0 ? min(100, round(($totalPaid / $totalDebt) * 100, 1)) : 0;
+
+        $paidCount = $allDebts->where('status', 'paid')->count();
+        $partialCount = $allDebts->where('status', 'partial')->count();
+        $unpaidCount = $allDebts->where('status', 'unpaid')->count();
+
+        $todayPaymentsQuery = DebtPayment::query()->whereDate('payment_date', today());
+        $todayPaymentsAmount = (float) $todayPaymentsQuery->sum('amount');
+        $todayPaymentsCount = $todayPaymentsQuery->count();
+
+        $debtsList = $allDebts->map(fn (Debt $d) => [
+            'id' => $d->id,
+            'reference_number' => $d->reference_number,
+            'customer_name' => $d->customer_name,
+            'customer_phone' => $d->customer_phone ?: '-',
+            'amount' => (float) $d->amount,
+            'paid_amount' => (float) $d->paid_amount,
+            'remaining_amount' => (float) max(0, $d->amount - $d->paid_amount),
+            'progress_percent' => $d->amount > 0 ? min(100, round(($d->paid_amount / $d->amount) * 100, 1)) : 0,
+            'status' => $d->status,
+            'shift' => strtolower($d->shift ?: 'pagi'),
+            'description' => $d->description ?: 'Utang Barang/Pulsa',
+            'notes' => $d->notes ?: '-',
+            'debt_date' => $d->debt_date ? $d->debt_date->format('d/m/Y') : '-',
+            'debt_date_raw' => $d->debt_date?->toISOString(),
+            'created_at_formatted' => $d->created_at ? $d->created_at->format('d/m/Y H:i') : '-',
+        ])->all();
+
+        $paymentsList = DebtPayment::query()
+            ->with('debt:id,reference_number,customer_name')
+            ->latest('payment_date')
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->map(fn (DebtPayment $p) => [
+                'id' => $p->id,
+                'reference_number' => $p->reference_number,
+                'customer_name' => $p->customer_name,
+                'amount' => (float) $p->amount,
+                'payment_method' => strtolower($p->payment_method ?: 'cash'),
+                'shift' => strtolower($p->shift ?: 'pagi'),
+                'debt_reference' => $p->debt?->reference_number ?: '-',
+                'debt_id' => $p->debt_id,
+                'payment_date' => $p->payment_date ? $p->payment_date->format('d/m/Y') : '-',
+                'payment_date_raw' => $p->payment_date?->toISOString(),
+                'notes' => $p->notes ?: '-',
+            ])->all();
+
+        return response()->json([
+            'debts' => $debtsList,
+            'payments' => $paymentsList,
+            'summary' => [
+                'total_debt' => $totalDebt,
+                'total_paid' => $totalPaid,
+                'total_remaining' => $totalRemaining,
+                'overall_progress' => $overallProgress,
+                'progress_percent' => $overallProgress,
+                'total_count' => count($allDebts),
+                'count_total' => count($allDebts),
+                'paid_count' => $paidCount,
+                'count_paid' => $paidCount,
+                'partial_count' => $partialCount,
+                'count_partial' => $partialCount,
+                'unpaid_count' => $unpaidCount,
+                'count_unpaid' => $unpaidCount,
+                'today_payments_amount' => $todayPaymentsAmount,
+                'today_payments_count' => $todayPaymentsCount,
+            ],
+        ]);
+    }
+
     public function unpaidDebts(): JsonResponse
     {
         $debts = Debt::query()
             ->where('status', '!=', 'paid')
+            ->where('status', '!=', 'cancelled')
             ->latest('debt_date')
-            ->get(['id', 'reference_number', 'customer_name', 'amount', 'paid_amount', 'shift', 'description', 'debt_date']);
+            ->latest('id')
+            ->get()
+            ->map(fn (Debt $d) => [
+                'id' => $d->id,
+                'reference_number' => $d->reference_number,
+                'customer_name' => $d->customer_name,
+                'customer_phone' => $d->customer_phone ?: '-',
+                'amount' => (float) $d->amount,
+                'paid_amount' => (float) $d->paid_amount,
+                'remaining_amount' => (float) max(0, $d->amount - $d->paid_amount),
+                'progress_percent' => $d->amount > 0 ? min(100, round(($d->paid_amount / $d->amount) * 100, 1)) : 0,
+                'status' => $d->status,
+                'shift' => $d->shift,
+                'description' => $d->description,
+                'debt_date' => $d->debt_date ? $d->debt_date->format('Y-m-d') : null,
+            ]);
 
         return response()->json($debts);
     }
