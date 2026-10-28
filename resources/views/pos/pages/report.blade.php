@@ -334,7 +334,7 @@
                             Semua (<span id="tabCountAll">0</span>)
                         </button>
                         <button type="button" class="report-tab-btn px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-[#64748b] hover:text-[#0f172a]" data-tab="voucher">
-                            Voucher (<span id="tabCountVoucher">0</span>)
+                            Voucher & Perdana (<span id="tabCountVoucher">0</span>)
                         </button>
                         <button type="button" class="report-tab-btn px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-[#64748b] hover:text-[#0f172a]" data-tab="pulsa">
                             Pulsa Elektrik (<span id="tabCountPulsa">0</span>)
@@ -355,11 +355,11 @@
             <!-- TAB 1: DETAIL VOUCHER -->
             <div id="sectionVoucherTab" class="space-y-3 pt-2">
                 <div class="text-xs font-bold uppercase tracking-wide text-purple-900 bg-purple-50 px-3 py-1.5 rounded border border-purple-200">
-                    1. Rincian Penjualan Voucher (Fisik & Menu Voucher)
+                    1. Rincian Penjualan Voucher & Perdana (Fisik & Menu Kasir)
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
-                        <span class="badge bg-purple-100 text-purple-800 font-semibold px-2.5 py-1 text-xs rounded border border-purple-200" id="badgeVoucherSummary">Total Voucher: Rp 0 (0 Transaksi)</span>
+                        <span class="badge bg-purple-100 text-purple-800 font-semibold px-2.5 py-1 text-xs rounded border border-purple-200" id="badgeVoucherSummary">Total Voucher & Perdana: Rp 0 (0 Transaksi)</span>
                     </div>
                     <input id="voucherSearch" class="field max-w-xs text-xs" type="text" placeholder="Cari ref / voucher / SN / pelanggan...">
                 </div>
@@ -370,7 +370,7 @@
                                 <th data-sort="reference_number">Ref / Invoice</th>
                                 <th data-sort="date_raw">Tanggal & Jam</th>
                                 <th data-sort="shift">Shift</th>
-                                <th data-sort="product_name">Nama Produk Voucher</th>
+                                <th data-sort="product_name">Nama Produk / Perdana</th>
                                 <th data-sort="serial_number">Serial Number (SN)</th>
                                 <th>No Tujuan</th>
                                 <th data-sort="source">Sumber</th>
@@ -994,7 +994,7 @@
                 $('#tabCountDebt').text(data.details?.debts?.length || 0);
                 $('#tabCountDebtPayment').text(data.details?.debt_payments?.length || 0);
 
-                $('#badgeVoucherSummary').text(`Total Voucher: ${money(data.summary.total_voucher_sales || 0)} (${data.summary.total_voucher_count || 0} Transaksi)`);
+                $('#badgeVoucherSummary').text(`Total Voucher & Perdana: ${money(data.summary.total_voucher_sales || 0)} (${data.summary.total_voucher_count || 0} Transaksi)`);
                 $('#badgePulsaSummary').text(`Total Pulsa Elektrik: ${money(data.summary.total_pulsa_sales || 0)} (${data.summary.total_pulsa_count || 0} Transaksi)`);
                 $('#badgeAccSummary').text(`Total Acesories: ${money(data.summary.total_accessories_sales || 0)} (${data.summary.total_accessories_count || 0} Transaksi)`);
                 $('#badgeDebtSummary').text(`Total Utang: ${money(data.summary.grand_total_debt || 0)} (${data.details?.debts?.length || 0} Transaksi)`);

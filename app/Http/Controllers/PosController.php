@@ -111,16 +111,18 @@ class PosController extends Controller
             ->orderBy('payment_date', 'asc')
             ->get();
 
-        // 14 Standard Predefined Voucher & Pulsa Categories (from physical paper report)
+        // Standard Predefined Voucher & Pulsa Categories (from physical paper report)
         $standardCategories = [
             'digipost (Telkomsel)',
-            'rita/voucher tree (Three)',
+            'rita (stock elektrik)',
             'sidompul xl (XL)',
-            'voucher/sisimple indosat (Indosat)',
+            'sisimple indosat (elektrik)',
             'voucher telkomsel',
+            'voucher tri',
             'voucher xl',
+            'voucher indosat',
+            'voucher axis',
             'voucher smartfren',
-            'voucher/perdana axis',
             'VOUCHER BYU',
             'perdana ALL OPERATOR',
             'mitra shopee',
@@ -179,7 +181,7 @@ class PosController extends Controller
             foreach ($shiftSales as $s) {
                 foreach ($s->items as $item) {
                     $product = $item->product;
-                    if ($this->isVoucher($product)) {
+                    if ($this->isVoucherOrPerdana($product)) {
                         $groupName = $this->resolveVoucherPulsaGroupName(
                             null,
                             $product?->provider?->name,
@@ -209,7 +211,7 @@ class PosController extends Controller
             $accessoriesItems = [];
             foreach ($shiftSales as $s) {
                 foreach ($s->items as $item) {
-                    if (! $this->isVoucherOrPulsa($item->product)) {
+                    if (! $this->isVoucherOrPulsa($item->product) && ! $this->isPerdana($item->product)) {
                         $productName = $item->product?->name ?: 'Aksesoris';
                         $variant = $item->product?->variant ?: '';
                         $fullName = $variant ? "{$productName} ({$variant})" : $productName;
@@ -324,39 +326,59 @@ class PosController extends Controller
             $refUpper = strtoupper(trim($ref));
             $productCodeUpper = strtoupper(trim($ps->product?->code ?? ''));
 
-            $isPls = str_starts_with($refUpper, 'PLS')
+            $isPdnRef = str_starts_with($refUpper, 'PDN') || str_starts_with($refUpper, 'SP');
+            $isPls = ! $isPdnRef && (
+                str_starts_with($refUpper, 'PLS')
                 || str_contains($refUpper, 'PLS')
                 || $this->isPulsaElektrik($ps->product)
-                || $ps->wallet_id !== null;
+                || $ps->wallet_id !== null
+            );
 
-            $isVcr = ! $isPls && (str_starts_with($refUpper, 'VCR') || $this->isVoucher($ps->product));
+            $isVcr = ! $isPls && (
+                str_starts_with($refUpper, 'VCR')
+                || $isPdnRef
+                || $this->isVoucherOrPerdana($ps->product)
+            );
 
             if ($isVcr) {
                 $detailedVouchers[] = [
-                    'id' => 'VCR-' . $ps->id,
+                    'id' => ($isPdnRef ? 'PDN-' : 'VCR-') . $ps->id,
                     'reference_number' => $ps->reference_number,
                     'date' => $ps->sale_date ? $ps->sale_date->format('d/m/Y H:i') : '-',
                     'date_raw' => $ps->sale_date?->toISOString(),
                     'shift' => strtolower($ps->shift ?: 'pagi'),
-                    'product_name' => $ps->product?->name ?: 'Voucher',
-                    'category' => $ps->product?->category ?: 'Voucher',
+                    'product_name' => $ps->manual_product_name ?: ($ps->product?->name ?: ($isPdnRef ? 'Kartu Perdana' : 'Voucher')),
+                    'category' => $ps->product?->category ?: ($isPdnRef ? 'Perdana' : 'Voucher'),
                     'variant' => $ps->product?->variant ?: '-',
                     'serial_number' => $ps->serial_number ?: '-',
                     'target_number' => $ps->target_number ?: '-',
                     'customer_name' => $ps->customer_name ?: '-',
                     'quantity' => 1,
                     'price' => (float) $ps->price,
+                    'cost_price' => (float) ($ps->cost_amount ?? 0),
+                    'profit' => (float) ($ps->price - ($ps->cost_amount ?? 0)),
                     'payment_method' => strtolower($ps->payment_method ?: 'cash'),
                     'status' => $ps->status ?: 'success',
-                    'source' => 'Menu Voucher',
+                    'source' => $isPdnRef ? 'Menu Perdana' : 'Menu Voucher',
                 ];
             } else {
                 $providerName = $ps->product?->provider?->name;
                 $catName = $ps->product?->category;
                 $displayProvider = $providerName ?: ($catName ?: ($ps->wallet?->name ?: 'Elektrik'));
                 $combinedName = strtolower(trim(($ps->product?->name ?? '') . ' ' . ($ps->manual_product_name ?? '')));
-                if (str_contains(strtolower($displayProvider), 'telkomsel') || str_contains($combinedName, 'telkomsel')) {
+                $checkText = strtolower($displayProvider . ' ' . $combinedName);
+                if (str_contains($checkText, 'telkomsel') || str_contains($checkText, 'tsel') || str_contains($checkText, 'digipos')) {
                     $displayProvider = 'TELKOMSEL';
+                } elseif (str_contains($checkText, 'rita') || str_contains($checkText, 'three') || str_contains($checkText, 'tree') || preg_match('/\b(tri|3)\b/i', $checkText)) {
+                    $displayProvider = 'THREE';
+                } elseif (str_contains($checkText, 'sisimple') || str_contains($checkText, 'indosat') || str_contains($checkText, 'im3') || str_contains($checkText, 'isat')) {
+                    $displayProvider = 'INDOSAT';
+                } elseif (str_contains($checkText, 'sidompul') || preg_match('/\b(xl|xtra)\b/i', $checkText)) {
+                    $displayProvider = 'XL';
+                } elseif (str_contains($checkText, 'axis') || str_contains($checkText, 'aigo')) {
+                    $displayProvider = 'AXIS';
+                } elseif (str_contains($checkText, 'smartfren') || str_contains($checkText, 'smart')) {
+                    $displayProvider = 'SMARTFREN';
                 }
 
                 $detailedPulsa[] = [
@@ -385,7 +407,7 @@ class PosController extends Controller
             foreach ($s->items as $item) {
                 $isItemPls = $this->isPulsaElektrik($item->product);
 
-                if ($this->isVoucher($item->product) && ! $isItemPls) {
+                if ($this->isVoucherOrPerdana($item->product) && ! $isItemPls) {
                     $detailedVouchers[] = [
                         'id' => 'POS-VCR-' . $s->id . '-' . $item->id,
                         'reference_number' => $s->invoice_number,
@@ -404,7 +426,7 @@ class PosController extends Controller
                         'status' => 'success',
                         'source' => 'Kasir POS',
                     ];
-                } elseif (! $this->isPulsaElektrik($item->product) && ! $isItemPls) {
+                } elseif (! $this->isPulsaElektrik($item->product) && ! $isItemPls && ! $this->isPerdana($item->product)) {
                     $detailedAccessories[] = [
                         'id' => 'ACC-' . $s->id . '-' . $item->id,
                         'invoice_number' => $s->invoice_number,
@@ -425,8 +447,19 @@ class PosController extends Controller
                     $providerName = $item->product?->provider?->name;
                     $catName = $item->product?->category;
                     $displayProvider = $providerName ?: ($catName ?: 'Elektrik');
-                    if (str_contains(strtolower($displayProvider), 'telkomsel') || str_contains(strtolower($item->product?->name ?? ''), 'telkomsel')) {
+                    $checkText = strtolower($displayProvider . ' ' . ($item->product?->name ?? ''));
+                    if (str_contains($checkText, 'telkomsel') || str_contains($checkText, 'tsel') || str_contains($checkText, 'digipos')) {
                         $displayProvider = 'TELKOMSEL';
+                    } elseif (str_contains($checkText, 'rita') || str_contains($checkText, 'three') || str_contains($checkText, 'tree') || preg_match('/\b(tri|3)\b/i', $checkText)) {
+                        $displayProvider = 'THREE';
+                    } elseif (str_contains($checkText, 'sisimple') || str_contains($checkText, 'indosat') || str_contains($checkText, 'im3') || str_contains($checkText, 'isat')) {
+                        $displayProvider = 'INDOSAT';
+                    } elseif (str_contains($checkText, 'sidompul') || preg_match('/\b(xl|xtra)\b/i', $checkText)) {
+                        $displayProvider = 'XL';
+                    } elseif (str_contains($checkText, 'axis') || str_contains($checkText, 'aigo')) {
+                        $displayProvider = 'AXIS';
+                    } elseif (str_contains($checkText, 'smartfren') || str_contains($checkText, 'smart')) {
+                        $displayProvider = 'SMARTFREN';
                     }
 
                     $detailedPulsa[] = [
@@ -665,11 +698,24 @@ class PosController extends Controller
         ?string $productCode = null
     ): string {
         $refUpper = strtoupper(trim($referenceNumber ?? ''));
-        $isPls = $isElectric
-            || str_starts_with($refUpper, 'PLS')
-            || str_contains($refUpper, 'PLS');
+        $isVcrRef = str_starts_with($refUpper, 'VCR');
+        $isPdnRef = str_starts_with($refUpper, 'PDN') || str_starts_with($refUpper, 'SP');
+        $isPlsRef = str_starts_with($refUpper, 'PLS') || str_contains($refUpper, 'PLS');
+
+        $isPls = ! $isVcrRef && ! $isPdnRef && ($isElectric || $isPlsRef);
 
         $combined = strtolower(trim(($walletName ?? '') . ' ' . ($providerName ?? '') . ' ' . ($category ?? '') . ' ' . ($productName ?? '')));
+        $catLower = strtolower(trim($category ?? ''));
+
+        // All Perdana products (manual or catalog) go to "perdana ALL OPERATOR"
+        $isPerdana = $isPdnRef
+            || $catLower === 'perdana'
+            || str_contains($catLower, 'perdana')
+            || (str_contains($combined, 'perdana') && ! str_contains($combined, 'voucher'));
+
+        if ($isPerdana && ! $isPls) {
+            return 'perdana ALL OPERATOR';
+        }
 
         if (str_contains($combined, 'byu') || str_contains($combined, 'by.u')) {
             return 'VOUCHER BYU';
@@ -683,38 +729,44 @@ class PosController extends Controller
         if (str_contains($combined, 'shopee')) {
             return 'mitra shopee';
         }
-        if (str_contains($combined, 'e-money') || str_contains($combined, 'emoney') || str_contains($combined, 'dana') || str_contains($combined, 'ovo') || str_contains($combined, 'gopay')) {
+        if (str_contains($combined, 'e-money') || str_contains($combined, 'emoney') || preg_match('/\b(dana|ovo|gopay|linkaja|shopeepay)\b/i', $combined)) {
             return 'E-money';
         }
         if (str_contains($combined, 'smartfren') || str_contains($combined, 'smart')) {
             return 'voucher smartfren';
         }
-        if (str_contains($combined, 'axis')) {
-            return 'voucher/perdana axis';
-        }
-        if (str_contains($combined, 'rita') || str_contains($combined, 'three') || str_contains($combined, 'tri') || str_contains($combined, 'tree')) {
-            return 'rita/voucher tree (Three)';
-        }
-        if (str_contains($combined, 'sisimple') || str_contains($combined, 'indosat') || str_contains($combined, 'im3') || str_contains($combined, 'isat')) {
-            return 'voucher/sisimple indosat (Indosat)';
-        }
-        if (str_contains($combined, 'sidompul') || str_contains($combined, 'xl')) {
+        if (str_contains($combined, 'axis') || str_contains($combined, 'aigo')) {
             if ($isPls) {
                 return 'sidompul xl (XL)';
             }
-            if (str_contains($combined, 'voucher') || str_contains($combined, 'vcr') || str_starts_with($combined, 'v')) {
-                return 'voucher xl';
+            if (str_contains($combined, 'perdana') && ! str_contains($combined, 'voucher')) {
+                return 'perdana ALL OPERATOR';
             }
-            return 'sidompul xl (XL)';
+            return 'voucher axis';
         }
-        if (str_contains($combined, 'telkomsel') || str_contains($combined, 'tsel') || str_contains($combined, 'digipos')) {
+        if (str_contains($combined, 'rita') || str_contains($combined, 'three') || str_contains($combined, 'tree') || preg_match('/\b(tri|3)\b/i', $combined)) {
+            if ($isPls) {
+                return 'rita (stock elektrik)';
+            }
+            return 'voucher tri';
+        }
+        if (str_contains($combined, 'sisimple') || str_contains($combined, 'indosat') || str_contains($combined, 'im3') || str_contains($combined, 'isat') || str_contains($combined, 'mentari')) {
+            if ($isPls) {
+                return 'sisimple indosat (elektrik)';
+            }
+            return 'voucher indosat';
+        }
+        if (str_contains($combined, 'sidompul') || preg_match('/\b(xl|xtra)\b/i', $combined)) {
+            if ($isPls) {
+                return 'sidompul xl (XL)';
+            }
+            return 'voucher xl';
+        }
+        if (str_contains($combined, 'telkomsel') || str_contains($combined, 'tsel') || str_contains($combined, 'digipos') || str_contains($combined, 'simpati') || str_contains($combined, 'kartu as')) {
             if ($isPls) {
                 return 'digipost (Telkomsel)';
             }
-            if (str_contains($combined, 'voucher') || str_contains($combined, 'vcr')) {
-                return 'voucher telkomsel';
-            }
-            return 'digipost (Telkomsel)';
+            return 'voucher telkomsel';
         }
         if (str_contains($combined, 'perdana')) {
             return 'perdana ALL OPERATOR';

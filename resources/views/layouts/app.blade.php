@@ -9,7 +9,7 @@
     </head>
     <body class="m-0">
         @php
-            $productMenuActive = request()->routeIs('master.physical.*') || request()->routeIs('master.electric.*') || request()->routeIs('master.voucher.*');
+            $productMenuActive = request()->routeIs('master.physical.*') || request()->routeIs('master.electric.*') || request()->routeIs('master.voucher.*') || request()->routeIs('perdana.*');
             $embedded = request()->boolean('embedded');
         @endphp
         <div class="{{ $embedded ? 'w-full' : 'window-shell w-full min-h-screen' }}" style="{{ $embedded ? '' : '--header-height: 96px;' }}">
@@ -55,6 +55,7 @@
                                         <a href="{{ route('master.physical.index') }}" class="menu-dropdown-item {{ request()->routeIs('master.physical.*') ? 'menu-dropdown-item-active' : '' }}">Produk Fisik</a>
                                         <a href="{{ route('master.electric.index') }}" class="menu-dropdown-item {{ request()->routeIs('master.electric.*') ? 'menu-dropdown-item-active' : '' }}">Produk Elektrik</a>
                                         <a href="{{ route('master.voucher.index') }}" class="menu-dropdown-item {{ request()->routeIs('master.voucher.*') ? 'menu-dropdown-item-active' : '' }}">Produk Voucher</a>
+                                        <a href="{{ route('perdana.index') }}" class="menu-dropdown-item {{ request()->routeIs('perdana.*') ? 'menu-dropdown-item-active' : '' }}">Kartu Perdana</a>
                                     </div>
                                 </div>
                                 <a href="{{ route('master.wallets.index') }}" class="menu-link {{ request()->routeIs('master.wallets.*') ? 'menu-link-active' : '' }}">Dompet Saldo</a>

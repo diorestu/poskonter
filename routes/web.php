@@ -23,6 +23,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/pengeluaran', [ExpenseController::class, 'index'])->name('expenses.index');
         Route::get('/pulsa-elektrik', [PulsaController::class, 'index'])->name('pulsa.index');
         Route::get('/voucher-pulsa', [PulsaController::class, 'voucherIndex'])->name('voucher.index');
+        Route::get('/kartu-perdana', [PulsaController::class, 'perdanaIndex'])->name('perdana.index');
         Route::get('/riwayat-penjualan', [PulsaController::class, 'history'])->name('sales-history.index');
 
         Route::prefix('ajax')->name('ajax.')->group(function (): void {
@@ -43,6 +44,8 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/pulsa/sales/{pulsaSale}/cancel', [PulsaController::class, 'cancelSale'])->name('pulsa.sales.cancel');
             Route::get('/voucher/dashboard', [PulsaController::class, 'voucherDashboard'])->name('voucher.dashboard');
             Route::post('/voucher/sales', [PulsaController::class, 'storeVoucherSale'])->name('voucher.sales.store');
+            Route::get('/perdana/dashboard', [PulsaController::class, 'perdanaDashboard'])->name('perdana.dashboard');
+            Route::post('/perdana/sales', [PulsaController::class, 'storePerdanaSale'])->name('perdana.sales.store');
             Route::post('/wallets', [PulsaController::class, 'storeWallet'])->name('wallets.store');
             Route::post('/wallets/{wallet}/topup', [PulsaController::class, 'topupWallet'])->name('wallets.topup');
             Route::post('/wallets/{wallet}/adjust', [PulsaController::class, 'topupWallet'])->name('wallets.adjust');

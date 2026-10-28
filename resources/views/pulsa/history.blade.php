@@ -266,7 +266,7 @@
                                         </button>
                                     ` : ''}
                                     ${!isCancelled ? `
-                                        <button type="button" class="btn btn-danger py-1 px-2.5 text-xs cancel-pulsa-sale" data-id="${item.id}" data-ref="${item.reference_number}" data-wallet="${item.wallet?.name || ''}" title="${String(item.reference_number || '').startsWith('VCR') ? 'Batalkan Transaksi & Kembalikan Stok Voucher' : 'Batalkan Transaksi & Kembalikan Saldo'}">
+                                        <button type="button" class="btn btn-danger py-1 px-2.5 text-xs cancel-pulsa-sale" data-id="${item.id}" data-ref="${item.reference_number}" data-wallet="${item.wallet?.name || ''}" title="${String(item.reference_number || '').startsWith('VCR') ? 'Batalkan Transaksi & Kembalikan Stok Voucher' : (String(item.reference_number || '').startsWith('PDN') ? 'Batalkan Transaksi Perdana' : 'Batalkan Transaksi & Kembalikan Saldo')}">
                                             <span>Batalkan</span>
                                         </button>
                                     ` : '<span class="text-[11px] text-[color:var(--muted)] font-normal">Dibatalkan</span>'}

@@ -2126,6 +2126,405 @@ class PosTest extends TestCase
         $unpaidAfterCancel = $this->getJson('/ajax/debts/unpaid');
         $this->assertNull(collect($unpaidAfterCancel->json())->firstWhere('sale_id', $saleId));
     }
+
+    public function test_daily_report_separates_rita_voucher_tri_and_sisimple_indosat_and_renames_voucher_axis(): void
+    {
+        $this->signIn('admin');
+
+        $triProvider = Provider::create(['name' => 'THREE']);
+        $triWallet = Wallet::create(['name' => 'RITA Tri', 'balance' => 500000, 'is_active' => true]);
+
+        $indosatProvider = Provider::create(['name' => 'INDOSAT']);
+        $indosatWallet = Wallet::create(['name' => 'Sisimple Indosat', 'balance' => 500000, 'is_active' => true]);
+
+        // 1. Tri Electric (Rita)
+        $triElectricProduct = Product::create([
+            'code' => 'PLS-TRI-10K',
+            'name' => 'Tri Rita 10K Elektrik',
+            'product_type' => 'pulsa',
+            'provider_id' => $triProvider->id,
+            'category' => 'THREE',
+            'unit' => 'trx',
+            'price' => 12000,
+            'cost_price' => 10500,
+            'stock' => 0,
+            'is_active' => true,
+        ]);
+        $triElectricProduct->wallets()->attach($triWallet->id);
+
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'PLS-20261027-001',
+            'sale_date' => now(),
+            'product_id' => $triElectricProduct->id,
+            'wallet_id' => $triWallet->id,
+            'customer_name' => 'Pelanggan Tri Elektrik',
+            'target_number' => '089612345678',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 12000,
+            'cost_amount' => 10500,
+            'cash_paid' => 12000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        // 2. Voucher Tri
+        $voucherTriProduct = Product::create([
+            'code' => 'VCR-TRI-6GB',
+            'name' => 'Voucher Tri Happy 6GB',
+            'product_type' => 'regular',
+            'category' => 'Voucher',
+            'unit' => 'pcs',
+            'price' => 25000,
+            'cost_price' => 22000,
+            'stock' => 5,
+            'is_active' => true,
+        ]);
+
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'VCR-20261027-001',
+            'sale_date' => now(),
+            'product_id' => $voucherTriProduct->id,
+            'wallet_id' => null,
+            'customer_name' => 'Pelanggan Voucher Tri',
+            'target_number' => '089699998888',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 25000,
+            'cost_amount' => 22000,
+            'cash_paid' => 25000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        // 3. Indosat Electric (Sisimple)
+        $isatElectricProduct = Product::create([
+            'code' => 'PLS-ISAT-25K',
+            'name' => 'Indosat Sisimple 25K Elektrik',
+            'product_type' => 'pulsa',
+            'provider_id' => $indosatProvider->id,
+            'category' => 'INDOSAT',
+            'unit' => 'trx',
+            'price' => 26000,
+            'cost_price' => 25200,
+            'stock' => 0,
+            'is_active' => true,
+        ]);
+        $isatElectricProduct->wallets()->attach($indosatWallet->id);
+
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'PLS-20261027-002',
+            'sale_date' => now(),
+            'product_id' => $isatElectricProduct->id,
+            'wallet_id' => $indosatWallet->id,
+            'customer_name' => 'Pelanggan Sisimple',
+            'target_number' => '085712345678',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 26000,
+            'cost_amount' => 25200,
+            'cash_paid' => 26000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        // 4. Voucher Indosat
+        $voucherIsatProduct = Product::create([
+            'code' => 'VCR-ISAT-5GB',
+            'name' => 'Voucher Indosat IM3 Freedom 5GB',
+            'product_type' => 'regular',
+            'category' => 'Voucher',
+            'unit' => 'pcs',
+            'price' => 30000,
+            'cost_price' => 27000,
+            'stock' => 5,
+            'is_active' => true,
+        ]);
+
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'VCR-20261027-002',
+            'sale_date' => now(),
+            'product_id' => $voucherIsatProduct->id,
+            'wallet_id' => null,
+            'customer_name' => 'Pelanggan Voucher Indosat',
+            'target_number' => '085788887777',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 30000,
+            'cost_amount' => 27000,
+            'cash_paid' => 30000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        // 5. Voucher Axis
+        $voucherAxisProduct = Product::create([
+            'code' => 'VCR-AXIS-AIGO',
+            'name' => 'Voucher Axis AIGO 3GB',
+            'product_type' => 'regular',
+            'category' => 'Voucher',
+            'unit' => 'pcs',
+            'price' => 18000,
+            'cost_price' => 15000,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        \App\Models\PulsaSale::create([
+            'reference_number' => 'VCR-20261027-003',
+            'sale_date' => now(),
+            'product_id' => $voucherAxisProduct->id,
+            'wallet_id' => null,
+            'customer_name' => 'Pelanggan Voucher Axis',
+            'target_number' => '083811112222',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'price' => 18000,
+            'cost_amount' => 15000,
+            'cash_paid' => 18000,
+            'change_amount' => 0,
+            'status' => 'success',
+        ]);
+
+        // 6. Perdana Axis (must go to 'perdana ALL OPERATOR')
+        $perdanaAxisProduct = Product::create([
+            'code' => 'SP-AXIS-01',
+            'name' => 'Perdana AXIS Siap Pakai 10GB',
+            'product_type' => 'regular',
+            'category' => 'Perdana',
+            'unit' => 'pcs',
+            'price' => 35000,
+            'cost_price' => 28000,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $saleAxis = \App\Models\Sale::create([
+            'invoice_number' => 'INV-20261027-AXIS',
+            'sale_date' => now(),
+            'customer_name' => 'Pelanggan Perdana Axis',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'subtotal' => 35000,
+            'discount' => 0,
+            'total' => 35000,
+            'cash_paid' => 35000,
+            'change_amount' => 0,
+        ]);
+        $saleAxis->items()->create([
+            'product_id' => $perdanaAxisProduct->id,
+            'serial_number' => 'SN-PERDANA-AXIS-001',
+            'quantity' => 1,
+            'price' => 35000,
+            'subtotal' => 35000,
+        ]);
+
+        $today = now()->toDateString();
+        $response = $this->getJson("/ajax/report/data?start_date={$today}&end_date={$today}");
+        $response->assertOk();
+
+        $pagiVoucherPulsa = collect($response->json('shifts.pagi.voucher_pulsa'));
+
+        // Check old categories are gone
+        $this->assertNull($pagiVoucherPulsa->firstWhere('name', 'rita/voucher tree (Three)'));
+        $this->assertNull($pagiVoucherPulsa->firstWhere('name', 'voucher/sisimple indosat (Indosat)'));
+        $this->assertNull($pagiVoucherPulsa->firstWhere('name', 'voucher/perdana axis'));
+
+        // Check 1: rita (stock elektrik)
+        $ritaRow = $pagiVoucherPulsa->firstWhere('name', 'rita (stock elektrik)');
+        $this->assertNotNull($ritaRow);
+        $this->assertEquals(1, $ritaRow['qty']);
+        $this->assertEquals(12000, $ritaRow['total']);
+
+        // Check 2: voucher tri
+        $voucherTriRow = $pagiVoucherPulsa->firstWhere('name', 'voucher tri');
+        $this->assertNotNull($voucherTriRow);
+        $this->assertEquals(1, $voucherTriRow['qty']);
+        $this->assertEquals(25000, $voucherTriRow['total']);
+
+        // Check 3: sisimple indosat (elektrik)
+        $sisimpleRow = $pagiVoucherPulsa->firstWhere('name', 'sisimple indosat (elektrik)');
+        $this->assertNotNull($sisimpleRow);
+        $this->assertEquals(1, $sisimpleRow['qty']);
+        $this->assertEquals(26000, $sisimpleRow['total']);
+
+        // Check 4: voucher indosat
+        $voucherIsatRow = $pagiVoucherPulsa->firstWhere('name', 'voucher indosat');
+        $this->assertNotNull($voucherIsatRow);
+        $this->assertEquals(1, $voucherIsatRow['qty']);
+        $this->assertEquals(30000, $voucherIsatRow['total']);
+
+        // Check 5: voucher axis
+        $voucherAxisRow = $pagiVoucherPulsa->firstWhere('name', 'voucher axis');
+        $this->assertNotNull($voucherAxisRow);
+        $this->assertEquals(1, $voucherAxisRow['qty']);
+        $this->assertEquals(18000, $voucherAxisRow['total']);
+
+        // Check 6: perdana ALL OPERATOR (receives perdana axis)
+        $perdanaAllRow = $pagiVoucherPulsa->firstWhere('name', 'perdana ALL OPERATOR');
+        $this->assertNotNull($perdanaAllRow);
+        $this->assertEquals(1, $perdanaAllRow['qty']);
+        $this->assertEquals(35000, $perdanaAllRow['total']);
+    }
+
+    public function test_cashier_can_access_perdana_page(): void
+    {
+        $this->signIn('cashier');
+
+        $response = $this->get('/kartu-perdana');
+        $response->assertOk();
+        $response->assertSee('Penjualan Kartu Perdana');
+        $response->assertSee('Pilih Operator Cepat');
+
+        // Check POS tab
+        $posResponse = $this->get('/pos');
+        $posResponse->assertOk();
+        $posResponse->assertSee('data-pos-tab="perdana"', false);
+        $posResponse->assertSee('Kartu Perdana');
+    }
+
+    public function test_manual_perdana_sale_can_be_stored_and_recorded_under_perdana_all_operator_in_report(): void
+    {
+        $this->signIn('cashier');
+
+        // 1. Store manual Perdana sale with operator name "Telkomsel 14GB"
+        $response = $this->postJson('/ajax/perdana/sales', [
+            'operator_name' => 'Telkomsel 14GB',
+            'price' => 35000,
+            'cost_price' => 28000,
+            'serial_number' => 'SN-TS-998877',
+            'phone_number' => '081234567890',
+            'customer_name' => 'Bambang',
+            'shift' => 'pagi',
+            'payment_method' => 'cash',
+            'cash_paid' => 50000,
+            'notes' => 'Perdana segel',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('sale.manual_product_name', 'Perdana Telkomsel 14GB')
+            ->assertJsonPath('sale.status', 'success');
+
+        $this->assertEquals(35000, (float) $response->json('sale.price'));
+        $this->assertEquals(28000, (float) $response->json('sale.cost_amount'));
+        $this->assertEquals(15000, (float) $response->json('sale.change_amount'));
+
+        $saleId = $response->json('sale.id');
+        $refNumber = $response->json('sale.reference_number');
+        $this->assertStringStartsWith('PDN-', $refNumber);
+
+        $this->assertDatabaseHas('pulsa_sales', [
+            'id' => $saleId,
+            'reference_number' => $refNumber,
+            'manual_product_name' => 'Perdana Telkomsel 14GB',
+            'price' => 35000,
+            'cost_amount' => 28000,
+            'cash_paid' => 50000,
+            'change_amount' => 15000,
+            'payment_method' => 'cash',
+            'shift' => 'pagi',
+        ]);
+
+        // 2. Dashboard perdana endpoint
+        $dashResponse = $this->getJson('/ajax/perdana/dashboard');
+        $dashResponse->assertOk()
+            ->assertJsonPath('summary.today_total', 35000)
+            ->assertJsonPath('summary.today_count', 1)
+            ->assertJsonPath('summary.today_cost', 28000)
+            ->assertJsonPath('summary.today_profit', 7000);
+
+        // 3. Daily Report verification: MUST be in 'perdana ALL OPERATOR' and NOT in 'voucher telkomsel'
+        $this->signIn('admin');
+        $today = now()->toDateString();
+        $reportResponse = $this->getJson("/ajax/report/data?start_date={$today}&end_date={$today}");
+        $reportResponse->assertOk();
+
+        $pagiVoucherPulsa = collect($reportResponse->json('shifts.pagi.voucher_pulsa'));
+
+        $perdanaAllRow = $pagiVoucherPulsa->firstWhere('name', 'perdana ALL OPERATOR');
+        $voucherTelkomselRow = $pagiVoucherPulsa->firstWhere('name', 'voucher telkomsel');
+
+        $this->assertNotNull($perdanaAllRow);
+        $this->assertEquals(1, $perdanaAllRow['qty']);
+        $this->assertEquals(35000, $perdanaAllRow['total']);
+
+        // Must NOT leak to voucher telkomsel
+        $this->assertEquals(0, $voucherTelkomselRow['qty']);
+        $this->assertEquals(0, $voucherTelkomselRow['total']);
+
+        // Check in details.vouchers
+        $detailedVouchers = collect($reportResponse->json('details.vouchers'));
+        $item = $detailedVouchers->firstWhere('reference_number', $refNumber);
+        $this->assertNotNull($item);
+        $this->assertEquals('Perdana Telkomsel 14GB', $item['product_name']);
+        $this->assertEquals(35000, $item['price']);
+        $this->assertEquals(28000, $item['cost_price']);
+        $this->assertEquals(7000, $item['profit']);
+        $this->assertEquals('Menu Perdana', $item['source']);
+    }
+
+    public function test_manual_perdana_sale_on_debt_and_cancellation(): void
+    {
+        $this->signIn('cashier');
+
+        // 1. Perdana sale on debt requires customer name
+        $failResponse = $this->postJson('/ajax/perdana/sales', [
+            'operator_name' => 'AXIS Kuota 5GB',
+            'price' => 25000,
+            'cost_price' => 20000,
+            'shift' => 'sore',
+            'payment_method' => 'utang',
+            'customer_name' => '',
+            'cash_paid' => 0,
+        ]);
+        $failResponse->assertStatus(422)
+            ->assertJsonValidationErrors('customer_name');
+
+        // 2. Successful Perdana sale on debt
+        $response = $this->postJson('/ajax/perdana/sales', [
+            'operator_name' => 'AXIS Kuota 5GB',
+            'price' => 25000,
+            'cost_price' => 20000,
+            'serial_number' => 'SN-AXIS-5GB',
+            'phone_number' => '083812345678',
+            'customer_name' => 'Mas Doni',
+            'shift' => 'sore',
+            'payment_method' => 'utang',
+            'cash_paid' => 10000,
+            'notes' => 'Janji lunas lusa',
+        ]);
+
+        $response->assertCreated();
+        $saleId = $response->json('sale.id');
+        $refNumber = $response->json('sale.reference_number');
+
+        // Verify debt is created
+        $this->assertDatabaseHas('debts', [
+            'pulsa_sale_id' => $saleId,
+            'customer_name' => 'Mas Doni',
+            'amount' => 25000,
+            'paid_amount' => 10000,
+            'status' => 'partial',
+            'shift' => 'sore',
+        ]);
+
+        // 3. Cancel the perdana sale
+        $cancelResponse = $this->postJson("/ajax/pulsa/sales/{$saleId}/cancel", [
+            'notes' => 'Pelanggan salah pilih nomor',
+        ]);
+        $cancelResponse->assertOk();
+
+        $this->assertDatabaseHas('pulsa_sales', [
+            'id' => $saleId,
+            'status' => 'cancelled',
+        ]);
+
+        // Verify linked debt is cancelled
+        $this->assertDatabaseHas('debts', [
+            'pulsa_sale_id' => $saleId,
+            'status' => 'cancelled',
+        ]);
+    }
 }
 
 

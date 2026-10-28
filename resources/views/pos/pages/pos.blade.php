@@ -5,6 +5,7 @@
         <div class="px-5 py-3 border-b border-[#e2e8f0] flex flex-wrap items-center justify-between gap-3 shrink-0">
             <div class="inline-flex rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-1 gap-1.5">
                 <button type="button" class="pos-main-tab menu-link menu-link-active text-xs font-semibold py-1.5 px-3.5" data-pos-tab="hp">HP dan Aksesoris</button>
+                <button type="button" class="pos-main-tab menu-link text-xs font-semibold py-1.5 px-3.5" data-pos-tab="perdana">Kartu Perdana</button>
                 <button type="button" class="pos-main-tab menu-link text-xs font-semibold py-1.5 px-3.5" data-pos-tab="voucher">Voucher</button>
                 <button type="button" class="pos-main-tab menu-link text-xs font-semibold py-1.5 px-3.5" data-pos-tab="pulsa">Pulsa Elektrik</button>
             </div>
@@ -137,6 +138,14 @@
                 </form>
             </div>
         </div>
+        </div>
+
+        <div class="pos-main-panel hidden p-4 sm:p-5" data-pos-panel="perdana">
+            <iframe
+                class="min-h-[760px] w-full border-0 rounded-xl"
+                src="{{ route('perdana.index', ['embedded' => 1]) }}"
+                title="Kartu Perdana"
+            ></iframe>
         </div>
 
         <div class="pos-main-panel hidden p-4 sm:p-5" data-pos-panel="voucher">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Debt;
+use App\Models\DebtPayment;
 use App\Models\Product;
 use App\Models\Provider;
 use App\Models\PulsaSale;
@@ -434,6 +435,8 @@ class PulsaController extends Controller
             $product = $pulsaSale->product_id ? Product::query()->lockForUpdate()->find($pulsaSale->product_id) : null;
             $refUpper = strtoupper(trim($pulsaSale->reference_number ?? ''));
             $isVoucher = str_starts_with($refUpper, 'VCR')
+                || str_starts_with($refUpper, 'PDN')
+                || str_starts_with($refUpper, 'SP')
                 || ! empty($pulsaSale->serial_number)
                 || ($product && ($product->product_type === 'voucher' || $product->product_type === 'regular' || $product->isVoucher() || ! $product->isPulsa()));
 
@@ -467,6 +470,10 @@ class PulsaController extends Controller
                 'cancelled_at' => now(),
                 'notes' => $note,
             ]);
+
+            if (str_starts_with($refUpper, 'PDN') || str_starts_with($refUpper, 'SP')) {
+                return 'Transaksi penjualan kartu perdana ' . $pulsaSale->reference_number . ' berhasil dibatalkan.';
+            }
 
             if ($restoredStock && $refundedWallet) {
                 return 'Transaksi ' . $pulsaSale->reference_number . ' berhasil dibatalkan. Stok voucher telah dikembalikan (+1) dan saldo modal Rp ' . number_format($pulsaSale->cost_amount, 0, ',', '.') . ' telah dikembalikan ke ' . $refundedWallet->name . '.';
@@ -855,5 +862,152 @@ class PulsaController extends Controller
         return $product->relationLoaded('sourceWallets')
             ? $product->sourceWallets
             : collect();
+    }
+
+    public function perdanaIndex(): View
+    {
+        return view('pulsa.perdana');
+    }
+
+    public function perdanaDashboard(): JsonResponse
+    {
+        $today = today();
+        $recentSales = PulsaSale::query()
+            ->where(function ($q): void {
+                $q->where('reference_number', 'like', 'PDN-%')
+                  ->orWhere('reference_number', 'like', 'SP-%');
+            })
+            ->latest('sale_date')
+            ->latest('id')
+            ->limit(50)
+            ->get();
+
+        $todaySales = PulsaSale::query()
+            ->whereDate('sale_date', $today)
+            ->where(function ($q): void {
+                $q->where('reference_number', 'like', 'PDN-%')
+                  ->orWhere('reference_number', 'like', 'SP-%');
+            })
+            ->where('status', '!=', 'cancelled')
+            ->get();
+
+        $todayTotal = (float) $todaySales->sum('price');
+        $todayCount = $todaySales->count();
+        $todayCost = (float) $todaySales->sum('cost_amount');
+        $todayProfit = $todayTotal - $todayCost;
+
+        return response()->json([
+            'sales' => $recentSales,
+            'summary' => [
+                'today_total' => $todayTotal,
+                'today_count' => $todayCount,
+                'today_cost' => $todayCost,
+                'today_profit' => $todayProfit,
+            ],
+        ]);
+    }
+
+    public function storePerdanaSale(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'operator_name' => ['required', 'string', 'max:120'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'cost_price' => ['required', 'numeric', 'min:0'],
+            'serial_number' => ['nullable', 'string', 'max:120'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
+            'customer_name' => ['nullable', 'string', 'max:120'],
+            'shift' => ['nullable', 'string', 'in:pagi,sore'],
+            'payment_method' => ['required', 'string', 'in:cash,qris,transfer,debit,utang'],
+            'cash_paid' => ['required', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $price = (float) $validated['price'];
+        $costPrice = (float) $validated['cost_price'];
+        $isDebt = ($validated['payment_method'] ?? 'cash') === 'utang';
+        $customerName = trim((string) ($validated['customer_name'] ?? ''));
+
+        if ($isDebt && $customerName === '') {
+            throw ValidationException::withMessages([
+                'customer_name' => 'Nama pelanggan wajib diisi untuk transaksi utang.',
+            ]);
+        }
+
+        $cashPaid = (float) ($validated['cash_paid'] ?? 0);
+        if (! $isDebt && $cashPaid < $price) {
+            throw ValidationException::withMessages([
+                'cash_paid' => 'Pembayaran customer kurang dari harga jual.',
+            ]);
+        }
+
+        $sale = DB::transaction(function () use ($validated, $price, $costPrice, $isDebt, $customerName, $cashPaid, $request): PulsaSale {
+            $shift = $validated['shift'] ?? (now()->hour < 15 ? 'pagi' : 'sore');
+            $operatorName = trim($validated['operator_name']);
+            $manualProductName = str_contains(strtolower($operatorName), 'perdana')
+                ? $operatorName
+                : "Perdana {$operatorName}";
+
+            $referenceNumber = 'PDN-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4));
+
+            $serialNumber = ! empty($validated['serial_number']) ? trim($validated['serial_number']) : null;
+            $phoneNumber = ! empty($validated['phone_number']) ? trim($validated['phone_number']) : ($serialNumber ?: '-');
+
+            $sale = PulsaSale::create([
+                'reference_number' => $referenceNumber,
+                'sale_date' => now(),
+                'product_id' => null,
+                'manual_product_name' => $manualProductName,
+                'wallet_id' => null,
+                'serial_number' => $serialNumber,
+                'customer_name' => $customerName !== '' ? $customerName : null,
+                'target_number' => $phoneNumber,
+                'shift' => $shift,
+                'payment_method' => $validated['payment_method'],
+                'price' => $price,
+                'cost_amount' => $costPrice,
+                'cash_paid' => $cashPaid,
+                'change_amount' => $isDebt ? 0 : max(0, $cashPaid - $price),
+                'status' => 'success',
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            if ($isDebt) {
+                $debt = Debt::create([
+                    'reference_number' => 'DEBT-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
+                    'debt_date' => $sale->sale_date,
+                    'customer_name' => $customerName,
+                    'customer_phone' => ! empty($validated['phone_number']) ? trim($validated['phone_number']) : null,
+                    'amount' => $price,
+                    'paid_amount' => $cashPaid,
+                    'status' => $cashPaid >= $price ? 'paid' : ($cashPaid > 0 ? 'partial' : 'unpaid'),
+                    'shift' => $shift,
+                    'pulsa_sale_id' => $sale->id,
+                    'description' => 'Penjualan Kartu Perdana: ' . $manualProductName,
+                    'notes' => $sale->notes,
+                    'created_by' => $request->user()?->id,
+                ]);
+
+                if ($cashPaid > 0) {
+                    DebtPayment::create([
+                        'reference_number' => 'PAY-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4)),
+                        'debt_id' => $debt->id,
+                        'customer_name' => $customerName,
+                        'payment_date' => $sale->sale_date,
+                        'shift' => $shift,
+                        'amount' => $cashPaid,
+                        'payment_method' => 'cash',
+                        'notes' => 'DP / Pembayaran awal transaksi perdana ' . $sale->reference_number,
+                        'created_by' => $request->user()?->id,
+                    ]);
+                }
+            }
+
+            return $sale;
+        });
+
+        return response()->json([
+            'message' => 'Transaksi penjualan kartu perdana berhasil disimpan.',
+            'sale' => $sale,
+        ], 201);
     }
 }
